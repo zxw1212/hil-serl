@@ -8,12 +8,14 @@ from gymnasium import spaces
 from gymnasium.spaces import Box
 
 
+
 try:
     import mujoco_py
 except ImportError as e:
     MUJOCO_PY_IMPORT_ERROR = e
 else:
     MUJOCO_PY_IMPORT_ERROR = None
+# from mujoco.glfw import glfw
 
 from franka_sim.controllers import opspace
 from franka_sim.mujoco_gym_env import GymRenderingSpec, MujocoGymEnv
@@ -22,7 +24,7 @@ _HERE = Path(__file__).parent
 _XML_PATH = _HERE / "xmls" / "arena.xml"
 _PANDA_HOME = np.asarray((0, -0.785, 0, -2.35, 0, 1.57, np.pi / 4))
 _CARTESIAN_BOUNDS = np.asarray([[0.2, -0.3, 0], [0.6, 0.3, 0.5]])
-_SAMPLING_BOUNDS = np.asarray([[0.35, -0.15], [0.55, 0.25]])
+_SAMPLING_BOUNDS = np.asarray([[0.3, -0.1], [0.5, 0.2]])
 
 
 class PandaPickCubeGymEnv(MujocoGymEnv):
@@ -61,7 +63,7 @@ class PandaPickCubeGymEnv(MujocoGymEnv):
         self.render_mode = render_mode
         self.camera_id = (0, 1)
         self.image_obs = image_obs
-
+        
         # Caching.
         self._panda_dof_ids = np.asarray(
             [self._model.joint(f"joint{i}").id for i in range(1, 8)]
@@ -208,22 +210,21 @@ class PandaPickCubeGymEnv(MujocoGymEnv):
             )
             self._data.ctrl[self._panda_ctrl_ids] = tau
             mujoco.mj_step(self._model, self._data)
-
         obs = self._compute_observation()
         rew = self._compute_reward()
-        terminated = self.time_limit_exceeded()
+        success = self._is_success()
+        terminated = self.time_limit_exceeded() or success
 
-        return obs, rew, terminated, False, {}
+        return obs, rew, terminated, False, {"succeed": success}
 
     def render(self):
+        self._viewer.render(self.render_mode)
         rendered_frames = []
         for cam_id in self.camera_id:
             rendered_frames.append(
                 self._viewer.render(render_mode="rgb_array", camera_id=cam_id)
             )
         return rendered_frames
-
-    # Helper methods.
 
     def _compute_observation(self) -> dict:
         obs = {}
@@ -250,9 +251,6 @@ class PandaPickCubeGymEnv(MujocoGymEnv):
             block_pos = self._data.sensor("block_pos").data.astype(np.float32)
             obs["state"]["block_pos"] = block_pos
 
-        if self.render_mode == "human":
-            self._viewer.render(self.render_mode)
-
         return obs
 
     def _compute_reward(self) -> float:
@@ -264,6 +262,13 @@ class PandaPickCubeGymEnv(MujocoGymEnv):
         r_lift = np.clip(r_lift, 0.0, 1.0)
         rew = 0.3 * r_close + 0.7 * r_lift
         return rew
+    
+    def _is_success(self) -> bool:
+        block_pos = self._data.sensor("block_pos").data
+        tcp_pos = self._data.sensor("2f85/pinch_pos").data
+        dist = np.linalg.norm(block_pos - tcp_pos)
+        lift = block_pos[2] - self._z_init
+        return dist < 0.05 and lift > 0.2
 
 
 if __name__ == "__main__":

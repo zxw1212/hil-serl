@@ -29,9 +29,10 @@ class TrainConfig(DefaultTrainingConfig):
     encoder_type = "resnet-pretrained"
     setup_mode = "single-arm-fixed-gripper"
     fake_env = True
+    classifier = False
 
     def get_environment(self, fake_env=False, save_video=False, classifier=False):
-        env = PandaPickCubeGymEnv(action_scale=(0.1, 1), render_mode="human", image_obs=True)
+        env = PandaPickCubeGymEnv(render_mode="human", image_obs=True, time_limit=10000000000)
         if not fake_env:
             env = JoystickIntervention(env)
         env = RelativeFrame(env)
