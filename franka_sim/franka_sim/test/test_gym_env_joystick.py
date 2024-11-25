@@ -17,8 +17,7 @@ m = env.model
 d = env.data
 # intervene on position control
 with mujoco.viewer.launch_passive(m, d) as viewer:
-    while viewer.is_running():
-        for i in range(100000):
-            env.step(np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]))
-            viewer.sync()
+    for i in range(100000):
+        env.step(np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]))
+        viewer.sync()
 

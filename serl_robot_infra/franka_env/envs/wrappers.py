@@ -354,16 +354,17 @@ class GripperPenaltyWrapper(gym.RewardWrapper):
         if (action[6] < -0.5 and self.last_gripper_pos > 0.95) or (
             action[6] > 0.5 and self.last_gripper_pos < 0.95
         ):
-            return reward - self.penalty
+            return reward - self.penalty, self.penalty
         else:
-            return reward
+            return reward, 0.0
 
     def step(self, action):
         """Modifies the :attr:`env` :meth:`step` reward using :meth:`self.reward`."""
         observation, reward, terminated, truncated, info = self.env.step(action)
         if "intervene_action" in info:
             action = info["intervene_action"]
-        reward = self.reward(reward, action)
+        reward, penalty = self.reward(reward, action)
+        info["grasp_penalty"] = penalty
         self.last_gripper_pos = observation["state"][0, 0]
         return observation, reward, terminated, truncated, info
 
@@ -569,8 +570,6 @@ class JoystickIntervention(gym.ActionWrapper):
 
     def step(self, action):
         new_action, replaced = self.action(action)
-
-        
         obs, rew, done, truncated, info = self.env.step(new_action)
         if replaced:
             info["intervene_action"] = new_action

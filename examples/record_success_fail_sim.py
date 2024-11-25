@@ -36,8 +36,6 @@ def main(_):
     assert FLAGS.exp_name in CONFIG_MAPPING, 'Experiment folder not found.'
     config = CONFIG_MAPPING[FLAGS.exp_name]()
     env = config.get_environment(fake_env=False, save_video=False, classifier=False)
-    m = env.model
-    d = env.data
 
     obs, _ = env.reset()
     successes = []
@@ -46,7 +44,7 @@ def main(_):
     pbar = tqdm(total=success_needed)
     
     while len(successes) < success_needed:
-        with mujoco.viewer.launch_passive(m, d) as viewer:
+        with mujoco.viewer.launch_passive(env.model, env.data) as viewer:
             while viewer.is_running():
                 if start_key:
                     actions = np.zeros(env.action_space.sample().shape) 

@@ -8,6 +8,7 @@ from franka_env.envs.wrappers import (
     Quat2EulerWrapper,
     JoystickIntervention,
     MultiCameraBinaryRewardClassifierWrapper,
+    GripperPenaltyWrapper,
     GripperCloseEnv
 )
 from franka_env.envs.relative_env import RelativeFrame
@@ -24,15 +25,16 @@ class TrainConfig(DefaultTrainingConfig):
     classifier_keys = ["front", "wrist"]
     proprio_keys = ["tcp_pose", "tcp_vel", "gripper_pose"]
     buffer_period = 1000
+    replay_buffer_capacity = 50000
     checkpoint_period = 5000
     steps_per_update = 50
     encoder_type = "resnet-pretrained"
-    setup_mode = "single-arm-fixed-gripper"
-    fake_env = True
+    setup_mode = "single-arm-learned-gripper"
+    fake_env = False
     classifier = False
 
     def get_environment(self, fake_env=False, save_video=False, classifier=False):
-        env = PandaPickCubeGymEnv(render_mode="human", image_obs=True, time_limit=10000000000)
+        env = PandaPickCubeGymEnv(render_mode="human", image_obs=True, time_limit=20.0)
         if not fake_env:
             env = JoystickIntervention(env)
         env = RelativeFrame(env)
@@ -53,4 +55,5 @@ class TrainConfig(DefaultTrainingConfig):
                 return int(sigmoid(classifier(obs)) > 0.85 and obs['state'][0, 6] > 0.04)
 
             env = MultiCameraBinaryRewardClassifierWrapper(env, reward_func)
+        env = GripperPenaltyWrapper(env, penalty=-0.02)
         return env
