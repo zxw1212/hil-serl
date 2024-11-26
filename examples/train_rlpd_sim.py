@@ -181,6 +181,7 @@ def actor(agent, data_store, intvn_data_store, env, sampling_rng):
                 # override the action with the intervention action
                 if "intervene_action" in info:
                     actions = info.pop("intervene_action")
+                    print("intervened!!!")
                     intervention_steps += 1
                     if not already_intervened:
                         intervention_count += 1
@@ -373,7 +374,7 @@ def main(_):
 
     assert FLAGS.exp_name in CONFIG_MAPPING, "Experiment folder not found."
     env = config.get_environment(
-        fake_env=FLAGS.learner,
+        fake_env=False,
         save_video=FLAGS.save_video,
         classifier=False,
     )
