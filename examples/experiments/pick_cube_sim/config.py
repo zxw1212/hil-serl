@@ -24,8 +24,10 @@ class TrainConfig(DefaultTrainingConfig):
     image_keys = ["front", "wrist"]
     classifier_keys = ["front", "wrist"]
     proprio_keys = ["tcp_pose", "tcp_vel", "gripper_pose"]
-    buffer_period = 1000
+    buffer_period = 2000
     replay_buffer_capacity = 50000
+    batch_size = 64
+    random_steps = 0
     checkpoint_period = 5000
     steps_per_update = 50
     encoder_type = "resnet-pretrained"
@@ -34,7 +36,7 @@ class TrainConfig(DefaultTrainingConfig):
     classifier = False
 
     def get_environment(self, fake_env=False, save_video=False, classifier=False):
-        env = PandaPickCubeGymEnv(render_mode="human", image_obs=True, time_limit=20.0)
+        env = PandaPickCubeGymEnv(render_mode="human", image_obs=True, time_limit=100.0, control_dt=0.1)
         if not fake_env:
             env = JoystickIntervention(env)
         env = RelativeFrame(env)
