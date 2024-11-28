@@ -7,8 +7,6 @@ import numpy as np
 from gymnasium import spaces
 from gymnasium.spaces import Box
 
-
-
 try:
     import mujoco_py
 except ImportError as e:
@@ -24,7 +22,7 @@ _HERE = Path(__file__).parent
 _XML_PATH = _HERE / "xmls" / "arena.xml"
 _PANDA_HOME = np.asarray((0, -0.785, 0, -2.35, 0, 1.57, np.pi / 4))
 _CARTESIAN_BOUNDS = np.asarray([[0.2, -0.3, 0], [0.6, 0.3, 0.5]])
-_SAMPLING_BOUNDS = np.asarray([[0.3, -0.1], [0.5, 0.2]])
+_SAMPLING_BOUNDS = np.asarray([[0.3, -0.15], [0.5, 0.15]])
 
 
 class PandaPickCubeGymEnv(MujocoGymEnv):
@@ -213,7 +211,9 @@ class PandaPickCubeGymEnv(MujocoGymEnv):
         obs = self._compute_observation()
         rew = self._compute_reward()
         success = self._is_success()
-        terminated = self.time_limit_exceeded() or success
+        block_pos = self._data.sensor("block_pos").data
+        outside_bounds = np.any(block_pos[:2] < (_SAMPLING_BOUNDS[0] - 0.05)) or np.any(block_pos[:2] > (_SAMPLING_BOUNDS[1] + 0.05))
+        terminated = self.time_limit_exceeded() or success or outside_bounds
 
         return obs, rew, terminated, False, {"succeed": success}
 

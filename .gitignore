@@ -2,3 +2,5 @@ examples/demo_data/*
 *.pkl
 examples/experiments/resnet10_params.pkl
 examples/experiments/pick_cube_sim/first_run/*
+examples/experiments/pick_cube_sim/__pycache__/*.pyc
+examples/experiments/__pycache__/*.pyc
