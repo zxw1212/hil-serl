@@ -2,3 +2,7 @@ examples/demo_data/*
 *.pkl
 examples/experiments/resnet10_params.pkl
 examples/experiments/pick_cube_sim/first_run/*
+.venv
+__pycache__
+*.egg-info
+PKG-INFO

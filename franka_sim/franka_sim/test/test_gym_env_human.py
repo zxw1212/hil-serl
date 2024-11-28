@@ -29,16 +29,19 @@ def key_callback(keycode):
 
 
 env.reset()
-with mujoco.viewer.launch_passive(m, d, key_callback=key_callback) as viewer:
+with mujoco.viewer.launch_passive(model=m, data=d, show_left_ui=False, show_right_ui=False, key_callback=key_callback) as viewer_1, \
+     mujoco.viewer.launch_passive(model=m, data=d, show_left_ui=False, show_right_ui=False, key_callback=key_callback) as viewer_2:
+
     start = time.time()
-    while viewer.is_running():
+    while viewer_1.is_running() and viewer_2.is_running():
         if reset:
             env.reset()
             reset = False
         else:
             step_start = time.time()
             env.step(sample())
-            viewer.sync()
+            viewer_1.sync()
+            viewer_2.sync()
             time_until_next_step = env.control_dt - (time.time() - step_start)
             if time_until_next_step > 0:
                 time.sleep(time_until_next_step)
