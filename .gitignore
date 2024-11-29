@@ -5,4 +5,5 @@ examples/experiments/pick_cube_sim/first_run/*
 .venv
 __pycache__
 *.egg-info
-PKG-INFO
+PKG-INFOexamples/experiments/pick_cube_sim/__pycache__/*.pyc
+examples/experiments/__pycache__/*.pyc

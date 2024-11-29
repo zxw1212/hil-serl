@@ -43,36 +43,37 @@ def main(_):
     success_needed = FLAGS.successes_needed
     pbar = tqdm(total=success_needed)
     
-    while len(successes) < success_needed:
-        with mujoco.viewer.launch_passive(env.model, env.data) as viewer:
-            while viewer.is_running():
-                if start_key:
-                    actions = np.zeros(env.action_space.sample().shape) 
-                    next_obs, rew, done, truncated, info = env.step(actions)
-                    viewer.sync()
-                    if "intervene_action" in info:
-                        actions = info["intervene_action"]
+    with mujoco.viewer.launch_passive(env.model, env.data) as viewer:
+        while viewer.is_running():
+            if start_key:
+                actions = np.zeros(env.action_space.sample().shape) 
+                next_obs, rew, done, truncated, info = env.step(actions)
+                viewer.sync()
+                if "intervene_action" in info:
+                    actions = info["intervene_action"]
 
-                    transition = copy.deepcopy(
-                        dict(
-                            observations=obs,
-                            actions=actions,
-                            next_observations=next_obs,
-                            rewards=rew,
-                            masks=1.0 - done,
-                            dones=done,
-                        )
+                transition = copy.deepcopy(
+                    dict(
+                        observations=obs,
+                        actions=actions,
+                        next_observations=next_obs,
+                        rewards=rew,
+                        masks=1.0 - done,
+                        dones=done,
                     )
-                    obs = next_obs
-                    if success_key:
-                        successes.append(transition)
-                        pbar.update(1)
-                        success_key = False
-                    else:
-                        failures.append(transition)
+                )
+                obs = next_obs
+                if success_key:
+                    successes.append(transition)
+                    pbar.update(1)
+                    success_key = False
+                else:
+                    failures.append(transition)
 
-                    if done or truncated:
-                        obs, _ = env.reset()
+                if done or truncated:
+                    obs, _ = env.reset()
+                if len(successes) >= success_needed:
+                    break
 
     if not os.path.exists("./classifier_data"):
         os.makedirs("./classifier_data")
