@@ -509,10 +509,10 @@ class JoystickIntervention(gym.ActionWrapper):
                 # Handle button events immediately
                 if 'BTN_TL' in latest_events:
                     self.left = bool(latest_events['BTN_TL'])
-                    self._reset_cmds()
+                    # self._reset_cmds()
                 if 'BTN_TR' in latest_events:
                     self.right = bool(latest_events['BTN_TR'])
-                    self._reset_cmds()
+                    # self._reset_cmds()
                 
             except inputs.UnpluggedError:
                 print("No controller found. Retrying...")
@@ -538,7 +538,7 @@ class JoystickIntervention(gym.ActionWrapper):
         expert_a[3] = self.rx_axis if abs(self.rx_axis) > deadzone else 0
         expert_a[4] = self.ry_axis if abs(self.ry_axis) > deadzone else 0
         expert_a[5] = self.rz_axis if abs(self.rz_axis) > deadzone else 0
-        self._reset_cmds()
+        # self._reset_cmds()
         
         intervened = False
         if np.linalg.norm(expert_a) > 0.001 or self.left or self.right:
