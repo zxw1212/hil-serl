@@ -8,6 +8,7 @@ from franka_sim import envs
 
 env = envs.PandaPickCubeGymEnv(render_mode="human", action_scale=(0.1, 1))
 action_spec = env.action_space
+print("action_spec", action_spec)
 
 
 def sample():

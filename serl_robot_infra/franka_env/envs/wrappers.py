@@ -409,6 +409,7 @@ class JoystickIntervention(gym.ActionWrapper):
         # we can set action_indices to choose which action to intervene on
         # e.g. action_indices=[0, 1, 2] will only intervene on the position control
         self.action_indices = action_indices 
+        print("action_indices", self.action_indices)
         
         # Controller state
         self.x_axis = 0
@@ -434,6 +435,15 @@ class JoystickIntervention(gym.ActionWrapper):
         self.ry_axis = 0
         self.rz_axis = 0
 
+
+    """
+    FRANK Gym Action Spec
+    low: -1.0
+    high: 1.0
+    shape: (7,)
+    We need to map our joystick values to the range [-1, 1]
+    PS5 controller values are in range [0, 255]
+    """
     def _read_gamepad(self):
         useful_codes = ['ABS_X', 'ABS_Y', 'ABS_RX', 'ABS_RY', 'ABS_Z', 'ABS_RZ', 'ABS_HAT0X']
         
@@ -449,14 +459,24 @@ class JoystickIntervention(gym.ActionWrapper):
         }
         
         # Scale factors for different axes
+        # scale = {
+        #     'ABS_X': 0.1,    # Adjust these scale factors
+        #     'ABS_Y': 0.1,    # to control sensitivity
+        #     'ABS_RX': 0.3,
+        #     'ABS_RY': 0.3,
+        #     'ABS_Z': 0.04,
+        #     'ABS_RZ': 0.04,
+        #     'ABS_HAT0X': 0.3,
+        # }
+
         scale = {
-            'ABS_X': 0.1,    # Adjust these scale factors
-            'ABS_Y': 0.1,    # to control sensitivity
-            'ABS_RX': 0.3,
-            'ABS_RY': 0.3,
-            'ABS_Z': 0.04,
-            'ABS_RZ': 0.04,
-            'ABS_HAT0X': 0.3,
+            'ABS_X': 1.0,    # Adjust these scale factors
+            'ABS_Y': 1.0,    # to control sensitivity
+            'ABS_RX': 1.0,
+            'ABS_RY': 1.0,
+            'ABS_Z': 1.0,
+            'ABS_RZ': 1.0,
+            'ABS_HAT0X': 1.0,
         }
 
         while self.running:
@@ -465,7 +485,10 @@ class JoystickIntervention(gym.ActionWrapper):
                 events = inputs.get_gamepad()
                 latest_events = {}
                 for event in events:
-                    latest_events[event.code] = event.state                
+                    print("event.ev_type", event.ev_type)
+                    print("event.code", event.code)
+                    print("event.state", event.state)
+                    latest_events[event.code] = event.state
                 # Process events
                 for code in useful_codes:
                     if code in latest_events:
@@ -475,33 +498,23 @@ class JoystickIntervention(gym.ActionWrapper):
                     # Only update if we've seen the same value 3 times
                     if event_counter[code] >= 1:
                         # Calculate relative changes based on the axis
+                        # Normalize the joystick input values to [-1, 1]
+                        normalized_value = (current_value - 128) / 127.0  # Assuming 0–255 range
+
                         if code == 'ABS_Y':
-                            new_value = current_value / 32768.0
-                            self.x_axis = -new_value * scale[code]
-                            
+                            self.x_axis = normalized_value * scale[code]
                         elif code == 'ABS_X':
-                            new_value = current_value / 32768.0
-                            self.y_axis = -new_value * scale[code]
-                            
+                            self.y_axis = -normalized_value * scale[code]
                         elif code == 'ABS_RZ':
-                            new_value = current_value / 255.0
-                            self.z_axis = new_value * scale[code]
-                            
+                            self.z_axis = normalized_value * scale[code]
                         elif code == 'ABS_Z':
-                            new_value = current_value / 255.0
-                            self.z_axis = -new_value * scale[code]
-                            
+                            self.z_axis = -normalized_value * scale[code]
                         elif code == 'ABS_RX':
-                            new_value = current_value / 32768.0
-                            self.rx_axis = new_value * scale[code]
-                            
+                            self.rx_axis = normalized_value * scale[code]
                         elif code == 'ABS_RY':
-                            new_value = current_value / 32768.0
-                            self.ry_axis = new_value * scale[code]
-                            
+                            self.ry_axis = normalized_value * scale[code]
                         elif code == 'ABS_HAT0X':
-                            new_value = current_value / 1.0
-                            self.rz_axis = new_value * scale[code]
+                            self.rz_axis = normalized_value * scale[code]
                         # Reset counter after update
                         event_counter[code] = 0
                         # print("cmd", code, self.x_axis, self.y_axis, self.z_axis, self.rx_axis, self.ry_axis, self.rz_axis)
@@ -526,18 +539,52 @@ class JoystickIntervention(gym.ActionWrapper):
         - action: joystick action if nonzero; else, policy action
         """
         # Get joystick action
-        deadzone = 0.03
+        deadzone = 0
         expert_a = np.zeros(6)
         
-        # Apply deadzone to position control
-        expert_a[0] = self.x_axis if abs(self.x_axis) > deadzone else 0
-        expert_a[1] = self.y_axis if abs(self.y_axis) > deadzone else 0
-        expert_a[2] = self.z_axis if abs(self.z_axis) > deadzone else 0
-        
+        # if abs(self.x_axis) > deadzone:
+        if 1 > 0:
+            expert_a[0] = self.x_axis
+            # print(f"x_axis condition met: {self.x_axis}")
+        else:
+            expert_a[0] = 0
+
+        # if abs(self.y_axis) > deadzone:
+        if 1 > 0:
+            expert_a[1] = self.y_axis
+            # print(f"y_axis condition met: {self.y_axis}")
+        else:
+            expert_a[1] = 0
+
+        # if abs(self.z_axis) > deadzone:
+        if 1 > 0:
+            expert_a[2] = self.z_axis
+            # print(f"z_axis condition met: {self.z_axis}")
+        else:
+            expert_a[2] = 0
+
         # Apply deadzone to rotation control
-        expert_a[3] = self.rx_axis if abs(self.rx_axis) > deadzone else 0
-        expert_a[4] = self.ry_axis if abs(self.ry_axis) > deadzone else 0
-        expert_a[5] = self.rz_axis if abs(self.rz_axis) > deadzone else 0
+        # if abs(self.rx_axis) > deadzone:
+        if 1 > 0:
+            expert_a[3] = self.rx_axis
+            # print(f"rx_axis condition met: {self.rx_axis}")
+        else:
+            expert_a[3] = 0
+
+        # if abs(self.ry_axis) > deadzone:
+        if 1 > 0:
+            expert_a[4] = self.ry_axis
+            # print(f"ry_axis condition met: {self.ry_axis}")
+        else:
+            expert_a[4] = 0
+
+        # if abs(self.rz_axis) > deadzone:
+        if 1 > 0:
+            expert_a[5] = self.rz_axis
+            # print(f"rz_axis condition met: {self.rz_axis}")
+        else:
+            expert_a[5] = 0
+
         self._reset_cmds()
         
         intervened = False
@@ -564,8 +611,10 @@ class JoystickIntervention(gym.ActionWrapper):
             expert_a = filtered_expert_a
 
         if intervened:
+            # print("expert_a", expert_a)
             return expert_a, True
 
+        # print("action", action)
         return action, False
 
     def step(self, action):
