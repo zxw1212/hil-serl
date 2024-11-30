@@ -43,7 +43,7 @@ def main(_):
     success_needed = FLAGS.successes_needed
     pbar = tqdm(total=success_needed)
     
-    with mujoco.viewer.launch_passive(env.model, env.data) as viewer:
+    with mujoco.viewer.launch_passive(env.unwrapped.model, env.unwrapped.data) as viewer:
         while viewer.is_running():
             if start_key:
                 actions = np.zeros(env.action_space.sample().shape) 

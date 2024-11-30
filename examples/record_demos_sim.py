@@ -12,7 +12,7 @@ import mujoco.viewer
 from pynput import keyboard
 
 FLAGS = flags.FLAGS
-flags.DEFINE_string("exp_name", None, "Name of experiment corresponding to folder.")
+flags.DEFINE_string("exp_name", "pick_cube_sim", "Name of experiment corresponding to folder.")
 flags.DEFINE_integer("successes_needed", 20, "Number of successful demos to collect.")
 
 start_key = False
@@ -42,7 +42,7 @@ def main(_):
     trajectory = []
     returns = 0
     
-    with mujoco.viewer.launch_passive(env.model, env.data) as viewer:
+    with mujoco.viewer.launch_passive(env.unwrapped.model, env.unwrapped.data) as viewer:
         while viewer.is_running():
             if start_key:
                 actions = np.zeros(env.action_space.sample().shape) 
