@@ -9,7 +9,7 @@ It includes a state-based and a vision-based Franka lift cube task environment.
 
 # Explore the Environments
 - Run `python franka_sim/test/test_gym_env_human.py` to launch a display window and visualize the task.
-- Run `python franka_sim/test/test_gym_env_joystick.py` to launch a display window and use joystick to control the arm.
+- Run `python franka_sim/test/test_gym_env_joystick.py --controller_type=<controller_type>` to launch a display window and use joystick to control the arm. `controller_type` can be `ps5` or `xbox`.
 
 # Run Experiments
 - Run `python examples/experiments/record_success_fail_sim.py` to record success and failure trajectories which is used for training the reward model.
