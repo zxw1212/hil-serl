@@ -28,7 +28,7 @@ class TrainConfig(DefaultTrainingConfig):
     proprio_keys = ["tcp_pose", "tcp_vel", "gripper_pose"]
     buffer_period = 2000
     replay_buffer_capacity = 50000
-    batch_size = 32
+    batch_size = 64
     random_steps = 0
     checkpoint_period = 5000
     steps_per_update = 50
