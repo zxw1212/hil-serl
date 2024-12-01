@@ -410,8 +410,7 @@ class ControllerType(Enum):
 
 @dataclass
 class ControllerConfig:
-    normalization_factor: float
-    offset: int
+    joystick_resolution: float
     scale: dict
 
 class JoystickIntervention(gym.ActionWrapper):
@@ -432,7 +431,6 @@ class JoystickIntervention(gym.ActionWrapper):
         ControllerType.XBOX: ControllerConfig(
             # XBOX controller joystick values have 16 bit resolution [0, 65535]
             joystick_resolution=2**16,
-            offset=0,
             scale={
                 'ABS_X': 0.05,
                 'ABS_Y': 0.05,
@@ -454,7 +452,8 @@ class JoystickIntervention(gym.ActionWrapper):
         # we can set action_indices to choose which action to intervene on
         # e.g. action_indices=[0, 1, 2] will only intervene on the position control
         self.action_indices = action_indices 
-        print("action_indices", self.action_indices)
+        self.controller_type = controller_type
+        self.controller_config = self.CONTROLLER_CONFIGS[controller_type]
         
         # Controller state
         self.x_axis = 0
@@ -511,7 +510,8 @@ class JoystickIntervention(gym.ActionWrapper):
                     if event_counter[code] >= 1:
                         # Calculate relative changes based on the axis
                         # Normalize the joystick input values to range [-1, 1] expected by the environment
-                        normalized_value = (current_value - (self.controller_config / 2)) / (self.controller_config.joystick_resolution / 2)
+                        joystick_resolution = self.controller_config.joystick_resolution
+                        normalized_value = (current_value - (joystick_resolution / 2)) / (joystick_resolution / 2)
 
                         if code == 'ABS_Y':
                             self.x_axis = normalized_value * self.controller_config.scale[code]
@@ -523,13 +523,10 @@ class JoystickIntervention(gym.ActionWrapper):
                             self.z_axis = -normalized_value * self.controller_config.scale[code]
                         elif code == 'ABS_RX':
                             self.rx_axis = normalized_value * self.controller_config.scale[code]
-                            print("rx_axis", self.rx_axis)
                         elif code == 'ABS_RY':
                             self.ry_axis = normalized_value * self.controller_config.scale[code]
-                            print("ry_axis", self.ry_axis)
                         elif code == 'ABS_HAT0X':
                             self.rz_axis = normalized_value * self.controller_config.scale[code]
-                            print("rz_axis", self.rz_axis)
                         # Reset counter after update
                         event_counter[code] = 0
                         # print("cmd", code, self.x_axis, self.y_axis, self.z_axis, self.rx_axis, self.ry_axis, self.rz_axis)
@@ -592,7 +589,6 @@ class JoystickIntervention(gym.ActionWrapper):
             expert_a = filtered_expert_a
 
         if intervened:
-            print("expert_a", expert_a)
             return expert_a, True
 
         return action, False
