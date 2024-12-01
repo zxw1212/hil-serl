@@ -410,27 +410,43 @@ class ControllerType(Enum):
 
 @dataclass
 class ControllerConfig:
-    joystick_resolution: float
+    resolution: dict
     scale: dict
 
 class JoystickIntervention(gym.ActionWrapper):
     CONTROLLER_CONFIGS = {
         ControllerType.PS5: ControllerConfig(
             # PS5 controller joystick values have 8 bit resolution [0, 255]
-            joystick_resolution=2**8,
+            resolution={
+                'ABS_X': 2**8,
+                'ABS_Y': 2**8,
+                'ABS_RX': 2**8,
+                'ABS_RY': 2**8,
+                'ABS_Z': 2**8,
+                'ABS_RZ': 2**8,
+                'ABS_HAT0X': 1.0,
+            },
             scale={
-                'ABS_X': 0.1,
-                'ABS_Y': 0.1,
-                'ABS_RX': 0.3,
-                'ABS_RY': 0.3,
+                'ABS_X': 0.4,
+                'ABS_Y': 0.4,
+                'ABS_RX': 0.5,
+                'ABS_RY': 0.5,
                 'ABS_Z': 0.8,
-                'ABS_RZ': 1.5,
-                'ABS_HAT0X': 0.3,
+                'ABS_RZ': 1.2,
+                'ABS_HAT0X': 0.5,
             }
         ),
         ControllerType.XBOX: ControllerConfig(
             # XBOX controller joystick values have 16 bit resolution [0, 65535]
-            joystick_resolution=2**16,
+            resolution={
+                'ABS_X': 2**16,
+                'ABS_Y': 2**16,
+                'ABS_RX': 2**16,
+                'ABS_RY': 2**16,
+                'ABS_Z': 2**8,
+                'ABS_RZ': 2**8,
+                'ABS_HAT0X': 1.0,
+            },
             scale={
                 'ABS_X': 0.05,
                 'ABS_Y': 0.05,
@@ -510,23 +526,25 @@ class JoystickIntervention(gym.ActionWrapper):
                     if event_counter[code] >= 1:
                         # Calculate relative changes based on the axis
                         # Normalize the joystick input values to range [-1, 1] expected by the environment
-                        joystick_resolution = self.controller_config.joystick_resolution
-                        normalized_value = (current_value - (joystick_resolution / 2)) / (joystick_resolution / 2)
+                        resolution = self.controller_config.resolution[code]
+                        normalized_value = (current_value - (resolution / 2)) / (resolution / 2)
+                        scaled_value = normalized_value * self.controller_config.scale[code]
 
                         if code == 'ABS_Y':
-                            self.x_axis = normalized_value * self.controller_config.scale[code]
+                            self.x_axis = scaled_value
                         elif code == 'ABS_X':
-                            self.y_axis = -normalized_value * self.controller_config.scale[code]
+                            self.y_axis = scaled_value
                         elif code == 'ABS_RZ':
-                            self.z_axis = normalized_value * self.controller_config.scale[code]
+                            self.z_axis = scaled_value
                         elif code == 'ABS_Z':
-                            self.z_axis = -normalized_value * self.controller_config.scale[code]
+                            # Flip sign so this will go in the down direction
+                            self.z_axis = -scaled_value
                         elif code == 'ABS_RX':
-                            self.rx_axis = normalized_value * self.controller_config.scale[code]
+                            self.rx_axis = scaled_value
                         elif code == 'ABS_RY':
-                            self.ry_axis = normalized_value * self.controller_config.scale[code]
+                            self.ry_axis = scaled_value
                         elif code == 'ABS_HAT0X':
-                            self.rz_axis = normalized_value * self.controller_config.scale[code]
+                            self.rz_axis = scaled_value
                         # Reset counter after update
                         event_counter[code] = 0
                         # print("cmd", code, self.x_axis, self.y_axis, self.z_axis, self.rx_axis, self.ry_axis, self.rz_axis)
