@@ -448,13 +448,13 @@ class JoystickIntervention(gym.ActionWrapper):
                 'ABS_HAT0X': 1.0,
             },
             scale={
-                'ABS_X': 0.05,
-                'ABS_Y': 0.05,
-                'ABS_RX': 0.15,
-                'ABS_RY': 0.15,
-                'ABS_Z': 0.5,
-                'ABS_RZ': 1.0,
-                'ABS_HAT0X': 0.15,
+                'ABS_X': -0.1,
+                'ABS_Y': -0.1,
+                'ABS_RX': 0.3,
+                'ABS_RY': 0.3,
+                'ABS_Z': 0.05,
+                'ABS_RZ': 0.05,
+                'ABS_HAT0X': 0.3,
             }
         ),
     }
@@ -522,12 +522,15 @@ class JoystickIntervention(gym.ActionWrapper):
                         event_counter[code] += 1
                         current_value = latest_events[code]
                                             
-                    # Only update if we've seen the same value 3 times
+                    # Only update if we've seen the same value 2 times
                     if event_counter[code] >= 1:
                         # Calculate relative changes based on the axis
                         # Normalize the joystick input values to range [-1, 1] expected by the environment
                         resolution = self.controller_config.resolution[code]
-                        normalized_value = (current_value - (resolution / 2)) / (resolution / 2)
+                        if self.controller_type == ControllerType.PS5:
+                            normalized_value = (current_value - (resolution / 2)) / (resolution / 2)
+                        else:
+                            normalized_value = current_value / (resolution / 2)
                         scaled_value = normalized_value * self.controller_config.scale[code]
 
                         if code == 'ABS_Y':
