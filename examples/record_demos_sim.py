@@ -45,6 +45,7 @@ def main(_):
     # Create the dual viewer
     dual_viewer = DualMujocoViewer(env.unwrapped.model, env.unwrapped.data)
 
+    print("Press shift to start recording.\nIf your controller is not working check controller_type (default is xbox) is configured in examples/experiments/pick_cube_sim/config.py")
     with dual_viewer as viewer:
         while viewer.is_running():
             if start_key:
