@@ -5,3 +5,4 @@ gymnasium
 dm-robotics-transformations
 imageio[ffmpeg]
 lxml
+inputs==0.5
