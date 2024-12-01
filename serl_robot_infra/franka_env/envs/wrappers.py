@@ -569,7 +569,7 @@ class JoystickIntervention(gym.ActionWrapper):
         - action: joystick action if nonzero; else, policy action
         """
         # Get joystick action
-        deadzone = 0
+        deadzone = 0.03
         expert_a = np.zeros(6)
         
         expert_a[0] = self.x_axis if abs(self.x_axis) > deadzone else 0
