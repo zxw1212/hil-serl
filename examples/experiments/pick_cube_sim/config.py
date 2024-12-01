@@ -22,7 +22,7 @@ from franka_sim.envs.panda_pick_gym_env import PandaPickCubeGymEnv
 
 
 class TrainConfig(DefaultTrainingConfig):
-    controller_type = ControllerType.PS5
+    controller_type = ControllerType.XBOX
     image_keys = ["front", "wrist"]
     classifier_keys = ["front", "wrist"]
     proprio_keys = ["tcp_pose", "tcp_vel", "gripper_pose"]
