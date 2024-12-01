@@ -3,7 +3,6 @@ examples/demo_data/*
 examples/experiments/resnet10_params.pkl
 examples/experiments/pick_cube_sim/first_run/*
 
-
 # Ignore all .pyc files in any directory
 **/*.pyc
 
@@ -11,3 +10,8 @@ examples/experiments/pick_cube_sim/first_run/*
 __pycache__/
 *.py[cod]
 *$py.class
+
+
+hil_serl_env
+serl_robot_infra/serl_robot_infra.egg-info/
+MUJOCO_LOG.TXT

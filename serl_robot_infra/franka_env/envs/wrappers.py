@@ -11,6 +11,8 @@ from franka_env.envs.franka_env import FrankaEnv
 from typing import List
 import inputs
 import threading
+from dataclasses import dataclass
+from enum import Enum
 
 sigmoid = lambda x: 1 / (1 + np.exp(-x))
 
@@ -399,8 +401,65 @@ class DualGripperPenaltyWrapper(gym.RewardWrapper):
         reward = self.reward(reward, action)
         return observation, reward, terminated, truncated, info
 
+
+
+
+class ControllerType(Enum):
+    PS5 = "ps5"
+    XBOX = "xbox"
+
+@dataclass
+class ControllerConfig:
+    resolution: dict
+    scale: dict
+
 class JoystickIntervention(gym.ActionWrapper):
-    def __init__(self, env, action_indices=None):
+    CONTROLLER_CONFIGS = {
+        ControllerType.PS5: ControllerConfig(
+            # PS5 controller joystick values have 8 bit resolution [0, 255]
+            resolution={
+                'ABS_X': 2**8,
+                'ABS_Y': 2**8,
+                'ABS_RX': 2**8,
+                'ABS_RY': 2**8,
+                'ABS_Z': 2**8,
+                'ABS_RZ': 2**8,
+                'ABS_HAT0X': 1.0,
+            },
+            scale={
+                'ABS_X': 0.4,
+                'ABS_Y': 0.4,
+                'ABS_RX': 0.5,
+                'ABS_RY': 0.5,
+                'ABS_Z': 0.8,
+                'ABS_RZ': 1.2,
+                'ABS_HAT0X': 0.5,
+            }
+        ),
+        ControllerType.XBOX: ControllerConfig(
+            # XBOX controller joystick values have 16 bit resolution [0, 65535]
+            resolution={
+                'ABS_X': 2**16,
+                'ABS_Y': 2**16,
+                'ABS_RX': 2**16,
+                'ABS_RY': 2**16,
+                'ABS_Z': 2**8,
+                'ABS_RZ': 2**8,
+                'ABS_HAT0X': 1.0,
+            },
+            scale={
+                'ABS_X': 0.05,
+                'ABS_Y': 0.05,
+                'ABS_RX': 0.15,
+                'ABS_RY': 0.15,
+                'ABS_Z': 0.5,
+                'ABS_RZ': 1.0,
+                'ABS_HAT0X': 0.15,
+            }
+        ),
+    }
+
+    def __init__(self, env, action_indices=None, controller_type=ControllerType.XBOX):
         super().__init__(env)
         
         self.gripper_enabled = True
@@ -409,6 +468,8 @@ class JoystickIntervention(gym.ActionWrapper):
         # we can set action_indices to choose which action to intervene on
         # e.g. action_indices=[0, 1, 2] will only intervene on the position control
         self.action_indices = action_indices 
+        self.controller_type = controller_type
+        self.controller_config = self.CONTROLLER_CONFIGS[controller_type]
         
         # Controller state
         self.x_axis = 0
@@ -433,7 +494,7 @@ class JoystickIntervention(gym.ActionWrapper):
         self.rx_axis = 0
         self.ry_axis = 0
         self.rz_axis = 0
-
+    
     def _read_gamepad(self):
         useful_codes = ['ABS_X', 'ABS_Y', 'ABS_RX', 'ABS_RY', 'ABS_Z', 'ABS_RZ', 'ABS_HAT0X']
         
@@ -447,25 +508,14 @@ class JoystickIntervention(gym.ActionWrapper):
             'ABS_RZ': 0,
             'ABS_HAT0X': 0,
         }
-        
-        # Scale factors for different axes
-        scale = {
-            'ABS_X': 0.1,    # Adjust these scale factors
-            'ABS_Y': 0.1,    # to control sensitivity
-            'ABS_RX': 0.3,
-            'ABS_RY': 0.3,
-            'ABS_Z': 0.04,
-            'ABS_RZ': 0.04,
-            'ABS_HAT0X': 0.3,
-        }
-
+    
         while self.running:
             try:
                 # Get fresh events
                 events = inputs.get_gamepad()
                 latest_events = {}
                 for event in events:
-                    latest_events[event.code] = event.state                
+                    latest_events[event.code] = event.state
                 # Process events
                 for code in useful_codes:
                     if code in latest_events:
@@ -475,33 +525,26 @@ class JoystickIntervention(gym.ActionWrapper):
                     # Only update if we've seen the same value 3 times
                     if event_counter[code] >= 1:
                         # Calculate relative changes based on the axis
+                        # Normalize the joystick input values to range [-1, 1] expected by the environment
+                        resolution = self.controller_config.resolution[code]
+                        normalized_value = (current_value - (resolution / 2)) / (resolution / 2)
+                        scaled_value = normalized_value * self.controller_config.scale[code]
+
                         if code == 'ABS_Y':
-                            new_value = current_value / 32768.0
-                            self.x_axis = -new_value * scale[code]
-                            
+                            self.x_axis = scaled_value
                         elif code == 'ABS_X':
-                            new_value = current_value / 32768.0
-                            self.y_axis = -new_value * scale[code]
-                            
+                            self.y_axis = scaled_value
                         elif code == 'ABS_RZ':
-                            new_value = current_value / 255.0
-                            self.z_axis = new_value * scale[code]
-                            
+                            self.z_axis = scaled_value
                         elif code == 'ABS_Z':
-                            new_value = current_value / 255.0
-                            self.z_axis = -new_value * scale[code]
-                            
+                            # Flip sign so this will go in the down direction
+                            self.z_axis = -scaled_value
                         elif code == 'ABS_RX':
-                            new_value = current_value / 32768.0
-                            self.rx_axis = new_value * scale[code]
-                            
+                            self.rx_axis = scaled_value
                         elif code == 'ABS_RY':
-                            new_value = current_value / 32768.0
-                            self.ry_axis = new_value * scale[code]
-                            
+                            self.ry_axis = scaled_value
                         elif code == 'ABS_HAT0X':
-                            new_value = current_value / 1.0
-                            self.rz_axis = new_value * scale[code]
+                            self.rz_axis = scaled_value
                         # Reset counter after update
                         event_counter[code] = 0
                         # print("cmd", code, self.x_axis, self.y_axis, self.z_axis, self.rx_axis, self.ry_axis, self.rz_axis)
@@ -529,15 +572,15 @@ class JoystickIntervention(gym.ActionWrapper):
         deadzone = 0.03
         expert_a = np.zeros(6)
         
-        # Apply deadzone to position control
         expert_a[0] = self.x_axis if abs(self.x_axis) > deadzone else 0
         expert_a[1] = self.y_axis if abs(self.y_axis) > deadzone else 0
         expert_a[2] = self.z_axis if abs(self.z_axis) > deadzone else 0
-        
+
         # Apply deadzone to rotation control
         expert_a[3] = self.rx_axis if abs(self.rx_axis) > deadzone else 0
         expert_a[4] = self.ry_axis if abs(self.ry_axis) > deadzone else 0
         expert_a[5] = self.rz_axis if abs(self.rz_axis) > deadzone else 0
+
         self._reset_cmds()
         
         intervened = False
