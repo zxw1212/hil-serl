@@ -1,5 +1,5 @@
+import argparse
 import time
-
 import mujoco
 import mujoco.viewer
 import numpy as np
@@ -9,7 +9,14 @@ import gymnasium as gym
 # import gym
 
 # import joystick wrapper
-from franka_env.envs.wrappers import JoystickIntervention
+from franka_env.envs.wrappers import JoystickIntervention, ControllerType
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--controller", type=str, default="xbox", help="Controller type. xbox|ps5")
+
+    args = parser.parse_args()
+    controller_type = ControllerType[args.controller.upper()]
 
 # env = envs.PandaPickCubeGymEnv(render_mode="human", image_obs=True)
 env = gym.make("PandaPickCubeVision-v0", render_mode="human", image_obs=True)
