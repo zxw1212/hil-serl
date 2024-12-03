@@ -6,10 +6,12 @@ import numpy as np
 
 from franka_sim import envs
 import gymnasium as gym
-# import gym
 
 # import joystick wrapper
-from franka_env.envs.wrappers import JoystickIntervention, ControllerType
+from franka_env.envs.wrappers import JoystickIntervention
+from franka_env.spacemouse.spacemouse_expert import ControllerType
+
+from franka_sim.utils.viewer_utils import DualMujocoViewer
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -20,15 +22,17 @@ if __name__ == "__main__":
 
 # env = envs.PandaPickCubeGymEnv(render_mode="human", image_obs=True)
 env = gym.make("PandaPickCubeVision-v0", render_mode="human", image_obs=True)
-env = JoystickIntervention(env)
+env = JoystickIntervention(env, controller_type=controller_type)
 
 env.reset()
 m = env.unwrapped.model
 d = env.unwrapped.data
+
+# Create the dual viewer
+dual_viewer = DualMujocoViewer(env.unwrapped.model, env.unwrapped.data)
+
 # intervene on position control
-with mujoco.viewer.launch_passive(model=m, data=d, show_left_ui=False, show_right_ui=False) as viewer_1, \
-     mujoco.viewer.launch_passive(model=m, data=d, show_left_ui=False, show_right_ui=False) as viewer_2:
+with dual_viewer as viewer:
     for i in range(100000):
         env.step(np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]))
-        viewer_1.sync()
-        viewer_2.sync()
+        viewer.sync()
