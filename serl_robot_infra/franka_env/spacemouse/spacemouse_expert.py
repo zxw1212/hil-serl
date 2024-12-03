@@ -4,7 +4,8 @@ import numpy as np
 import inputs
 from franka_env.spacemouse import pyspacemouse
 from typing import Tuple
-
+from dataclasses import dataclass
+from enum import Enum
 
 class SpaceMouseExpert:
     """
@@ -62,6 +63,15 @@ class SpaceMouseExpert:
         # pyspacemouse.close()
         self.process.terminate()
 
+class ControllerType(Enum):
+    PS5 = "ps5"
+    XBOX = "xbox"
+
+@dataclass
+class ControllerConfig:
+    resolution: dict
+    scale: dict
+
 class JoystickExpert:
     """
     This class provides an interface to the Joystick/Gamepad.
@@ -69,7 +79,55 @@ class JoystickExpert:
     a "get_action" method to get the latest action and button state.
     """
 
-    def __init__(self):
+    CONTROLLER_CONFIGS = {
+        ControllerType.PS5: ControllerConfig(
+            # PS5 controller joystick values have 8 bit resolution [0, 255]
+            resolution={
+                'ABS_X': 2**8,
+                'ABS_Y': 2**8,
+                'ABS_RX': 2**8,
+                'ABS_RY': 2**8,
+                'ABS_Z': 2**8,
+                'ABS_RZ': 2**8,
+                'ABS_HAT0X': 1.0,
+            },
+            scale={
+                'ABS_X': 0.4,
+                'ABS_Y': 0.4,
+                'ABS_RX': 0.5,
+                'ABS_RY': 0.5,
+                'ABS_Z': 0.8,
+                'ABS_RZ': 1.2,
+                'ABS_HAT0X': 0.5,
+            }
+        ),
+        ControllerType.XBOX: ControllerConfig(
+            # XBOX controller joystick values have 16 bit resolution [0, 65535]
+            resolution={
+                'ABS_X': 2**16,
+                'ABS_Y': 2**16,
+                'ABS_RX': 2**16,
+                'ABS_RY': 2**16,
+                'ABS_Z': 2**8,
+                'ABS_RZ': 2**8,
+                'ABS_HAT0X': 1.0,
+            },
+            scale={
+                'ABS_X': -0.1,
+                'ABS_Y': -0.1,
+                'ABS_RX': 0.3,
+                'ABS_RY': 0.3,
+                'ABS_Z': 0.05,
+                'ABS_RZ': 0.05,
+                'ABS_HAT0X': 0.3,
+            }
+        ),
+    }
+
+    def __init__(self, controller_type=ControllerType.XBOX):
+        self.controller_type = controller_type
+        self.controller_config = self.CONTROLLER_CONFIGS[controller_type]
+
         # Manager to handle shared state between processes
         self.manager = multiprocessing.Manager()
         self.latest_data = self.manager.dict()
@@ -83,17 +141,6 @@ class JoystickExpert:
 
 
     def _read_joystick(self):        
-        # Scale factors for different axes
-        scale = {
-            'ABS_X': 0.1,    # Adjust these scale factors
-            'ABS_Y': 0.1,    # to control sensitivity
-            'ABS_RX': 0.3,
-            'ABS_RY': 0.3,
-            'ABS_Z': 0.04,
-            'ABS_RZ': 0.04,
-            'ABS_HAT0X': 0.3,
-        }
-        
         action = [0.0] * 6
         buttons = [False, False]
         
@@ -104,27 +151,31 @@ class JoystickExpert:
           
                 # Process events
                 for event in events:
-                    # Calculate relative changes based on the axis
-                    if event.code == 'ABS_Y':
-                        action[0] = -(event.state / 32768.0) * scale[event.code]
-                        
-                    elif event.code == 'ABS_X':
-                        action[1] = -(event.state / 32768.0) * scale[event.code]
-                        
-                    elif event.code == 'ABS_Z':
-                        action[2] = -(event.state / 255.0) * scale[event.code]
+                    if event.code in self.controller_config.resolution:
+                        # Calculate relative changes based on the axis
+                        # Normalize the joystick input values to range [-1, 1] expected by the environment
+                        resolution = self.controller_config.resolution[event.code]
+                        if self.controller_type == ControllerType.PS5:
+                            normalized_value = (event.state - (resolution / 2)) / (resolution / 2)
+                        else:
+                            normalized_value = event.state / (resolution / 2)
+                        scaled_value = normalized_value * self.controller_config.scale[event.code]
 
-                    elif event.code == 'ABS_RZ':
-                        action[2] = (event.state / 255.0) * scale[event.code]
-
-                    elif event.code == 'ABS_RX':
-                        action[3] = (event.state / 32768.0) * scale[event.code]
-                        
-                    elif event.code == 'ABS_RY':
-                        action[4] = (event.state / 32768.0) * scale[event.code]
-
-                    elif event.code == 'ABS_HAT0X':
-                        action[5] = (event.state / 255.0) * scale[event.code]
+                        if event.code == 'ABS_Y':
+                            action[0] = scaled_value
+                        elif event.code == 'ABS_X':
+                            action[1] = scaled_value
+                        elif event.code == 'ABS_RZ':
+                            action[2] = scaled_value
+                        elif event.code == 'ABS_Z':
+                            # Flip sign so this will go in the down direction
+                            action[2] = -scaled_value
+                        elif event.code == 'ABS_RX':
+                            action[3] = scaled_value
+                        elif event.code == 'ABS_RY':
+                            action[4] = scaled_value
+                        elif event.code == 'ABS_HAT0X':
+                            action[5] = scaled_value
                         
                     # Handle button events
                     elif event.code == 'BTN_TL':
