@@ -12,8 +12,8 @@ It includes a state-based and a vision-based Franka lift cube task environment.
 - Run `python franka_sim/test/test_gym_env_joystick.py --controller_type=<controller_type>` to launch a display window and use joystick to control the arm. `controller_type` can be `ps5` or `xbox`.
 
 # Run Experiments
-- Run `python examples/experiments/record_success_fail_sim.py` to record success and failure trajectories which is used for training the reward model. Controller type can be set in `examples/experiments/pick_cube_sim/config.py`.
-- Run `python examples/experiments/record_demos_sim.py` to record demonstrations for training the policy. Controller type can be set in `examples/experiments/pick_cube_sim/config.py`.
+- Run `python examples/experiments/record_success_fail_sim.py --exp_name pick_cube_sim --successes_needed 2000` to record success and failure trajectories which is used for training the reward model, you can define the number of successes needed. Controller type can be set in `examples/experiments/pick_cube_sim/config.py`.
+- Run `python examples/experiments/record_demos_sim.py --exp_name pick_cube_sim --successes_needed 30` to record demonstrations for training the policy, you can define the number of successes needed. Controller type can be set in `examples/experiments/pick_cube_sim/config.py`.
 - To train a rlpd agent to solve the pick cube task:
     - `cd examples/experiments/pick_cube_sim` 
     - run `bash run_actor.sh`
