@@ -421,7 +421,7 @@ class JoystickIntervention(gym.ActionWrapper):
         Output:
         - action: joystick action if nonezero; else, policy action
         """
-        deadzone = 0.001
+        deadzone = 0.03
 
         expert_a, buttons = self.expert.get_action()
         self.left, self.right = tuple(buttons)

@@ -1,5 +1,5 @@
 dm_env
-mujoco==2.3.7
+mujoco==3.2.6
 gym >= 0.26
 gymnasium
 dm-robotics-transformations

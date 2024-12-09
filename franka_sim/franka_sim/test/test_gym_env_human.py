@@ -20,14 +20,14 @@ def sample():
 m = env.model
 d = env.data
 
-reset = False
+key_reset = False
 KEY_SPACE = 32
 
 
 def key_callback(keycode):
     if keycode == KEY_SPACE:
-        global reset
-        reset = True
+        global key_reset
+        key_reset = True
 
 
 env.reset()
@@ -38,9 +38,9 @@ dual_viewer = DualMujocoViewer(env.unwrapped.model, env.unwrapped.data)
 with dual_viewer as viewer:
     start = time.time()
     while viewer.is_running():
-        if reset:
+        if key_reset:
             env.reset()
-            reset = False
+            key_reset = False
         else:
             step_start = time.time()
             env.step(sample())
