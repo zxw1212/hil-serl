@@ -41,7 +41,6 @@ def main(_):
     pbar = tqdm(total=success_needed)
     trajectory = []
     returns = 0
-
     # Create the dual viewer
     dual_viewer = DualMujocoViewer(env.unwrapped.model, env.unwrapped.data)
 

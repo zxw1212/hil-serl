@@ -48,6 +48,7 @@ def main(_):
 
     print("Press shift to start recording, press enter to record a successful transition.\nIf your controller is not working check controller_type (default is xbox) is configured in examples/experiments/pick_cube_sim/config.py")
     with dual_viewer as viewer:
+
         while viewer.is_running():
             
             if start_key:
