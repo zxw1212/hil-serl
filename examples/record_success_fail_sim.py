@@ -9,7 +9,7 @@ from pynput import keyboard
 
 from experiments.mappings import CONFIG_MAPPING
 
-import mujoco.viewer
+from franka_sim.utils.viewer_utils import DualMujocoViewer
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string("exp_name", None, "Name of experiment corresponding to folder.")
@@ -43,8 +43,12 @@ def main(_):
     success_needed = FLAGS.successes_needed
     pbar = tqdm(total=success_needed)
     
+    # Create the dual viewer
+    dual_viewer = DualMujocoViewer(env.unwrapped.model, env.unwrapped.data)
+
     print("Press shift to start recording, press enter to record a successful transition.\nIf your controller is not working check controller_type (default is xbox) is configured in examples/experiments/pick_cube_sim/config.py")
-    with mujoco.viewer.launch_passive(env.model, env.data) as viewer:
+    with dual_viewer as viewer:
+
         while viewer.is_running():
             
             if start_key:
