@@ -15,20 +15,8 @@ FLAGS = flags.FLAGS
 flags.DEFINE_string("exp_name", "pick_cube_sim", "Name of experiment corresponding to folder.")
 flags.DEFINE_integer("successes_needed", 20, "Number of successful demos to collect.")
 
-start_key = False
-def on_press(key):
-    global start_key
-    try:
-        if str(key) == 'Key.shift':
-            start_key = True
-    except AttributeError:
-        pass
 
 def main(_):
-    global start_key
-    listener = keyboard.Listener(
-        on_press=on_press)
-    listener.start()
     assert FLAGS.exp_name in CONFIG_MAPPING, 'Experiment folder not found.'
     config = CONFIG_MAPPING[FLAGS.exp_name]()
     env = config.get_environment(fake_env=False, save_video=False, classifier=False)
@@ -47,39 +35,38 @@ def main(_):
     print("Press shift to start recording.\nIf your controller is not working check controller_type (default is xbox) is configured in examples/experiments/pick_cube_sim/config.py")
     with dual_viewer as viewer:
         while viewer.is_running():
-            if start_key:
-                actions = np.zeros(env.action_space.sample().shape) 
-                next_obs, rew, done, truncated, info = env.step(actions)
-                viewer.sync()
-                returns += rew
-                if "intervene_action" in info:
-                    actions = info["intervene_action"]
-                transition = copy.deepcopy(
-                    dict(
-                        observations=obs,
-                        actions=actions,
-                        next_observations=next_obs,
-                        rewards=rew,
-                        masks=1.0 - done,
-                        dones=done,
-                        infos=info,
-                    )
+            actions = np.zeros(env.action_space.sample().shape) 
+            next_obs, rew, done, truncated, info = env.step(actions)
+            viewer.sync()
+            returns += rew
+            if "intervene_action" in info:
+                actions = info["intervene_action"]
+            transition = copy.deepcopy(
+                dict(
+                    observations=obs,
+                    actions=actions,
+                    next_observations=next_obs,
+                    rewards=rew,
+                    masks=1.0 - done,
+                    dones=done,
+                    infos=info,
                 )
-                trajectory.append(transition)
-                
-                pbar.set_description(f"Return: {returns}")
+            )
+            trajectory.append(transition)
+            
+            pbar.set_description(f"Return: {returns}")
 
-                obs = next_obs
-                if done:
-                    if info["succeed"]:
-                        for transition in trajectory:
-                            transitions.append(copy.deepcopy(transition))
-                        success_count += 1
-                        print(f"Success count: {success_count}")
-                        pbar.update(1)
-                    trajectory = []
-                    returns = 0
-                    obs, info = env.reset()
+            obs = next_obs
+            if done:
+                if info["succeed"]:
+                    for transition in trajectory:
+                        transitions.append(copy.deepcopy(transition))
+                    success_count += 1
+                    print(f"Success count: {success_count}")
+                    pbar.update(1)
+                trajectory = []
+                returns = 0
+                obs, info = env.reset()
             if success_count >= success_needed:
                 break
 

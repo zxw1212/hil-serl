@@ -19,17 +19,15 @@ flags.DEFINE_integer("successes_needed", 200, "Number of successful transistions
 success_key = False
 start_key = False
 def on_press(key):
-    global success_key, start_key
+    global success_key
     try:
         if str(key) == 'Key.enter':
             success_key = True
-        if str(key) == 'Key.shift':
-            start_key = True
     except AttributeError:
         pass
 
 def main(_):
-    global success_key, start_key
+    global success_key
     listener = keyboard.Listener(
         on_press=on_press)
     listener.start()
@@ -51,35 +49,34 @@ def main(_):
 
         while viewer.is_running():
             
-            if start_key:
-                actions = np.zeros(env.action_space.sample().shape) 
-                next_obs, rew, done, truncated, info = env.step(actions)
-                viewer.sync()
-                if "intervene_action" in info:
-                    actions = info["intervene_action"]
+            actions = np.zeros(env.action_space.sample().shape) 
+            next_obs, rew, done, truncated, info = env.step(actions)
+            viewer.sync()
+            if "intervene_action" in info:
+                actions = info["intervene_action"]
 
-                transition = copy.deepcopy(
-                    dict(
-                        observations=obs,
-                        actions=actions,
-                        next_observations=next_obs,
-                        rewards=rew,
-                        masks=1.0 - done,
-                        dones=done,
-                    )
+            transition = copy.deepcopy(
+                dict(
+                    observations=obs,
+                    actions=actions,
+                    next_observations=next_obs,
+                    rewards=rew,
+                    masks=1.0 - done,
+                    dones=done,
                 )
-                obs = next_obs
-                if success_key:
-                    successes.append(transition)
-                    pbar.update(1)
-                    success_key = False
-                else:
-                    failures.append(transition)
+            )
+            obs = next_obs
+            if success_key:
+                successes.append(transition)
+                pbar.update(1)
+                success_key = False
+            else:
+                failures.append(transition)
 
-                if done or truncated:
-                    obs, _ = env.reset()
-                if len(successes) >= success_needed:
-                    break
+            if done or truncated:
+                obs, _ = env.reset()
+            if len(successes) >= success_needed:
+                break
 
     if not os.path.exists("./classifier_data"):
         os.makedirs("./classifier_data")
