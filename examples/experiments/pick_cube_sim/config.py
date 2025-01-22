@@ -8,10 +8,13 @@ from franka_env.envs.wrappers import (
     Quat2EulerWrapper,
     JoystickIntervention,
     MultiCameraBinaryRewardClassifierWrapper,
-    GripperPenaltyWrapper,
+    # GripperPenaltyWrapper,
     GripperCloseEnv,
     ControllerType
 )
+
+from experiments.pick_cube_sim.wrapper import GripperPenaltyWrapper
+
 from franka_env.envs.relative_env import RelativeFrame
 from serl_launcher.wrappers.serl_obs_wrappers import SERLObsWrapper
 from serl_launcher.wrappers.chunking import ChunkingWrapper
