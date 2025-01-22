@@ -31,7 +31,7 @@ class PandaPickCubeGymEnv(MujocoGymEnv):
 
     def __init__(
         self,
-        action_scale: np.ndarray = np.asarray([0.1, 1]),
+        action_scale: np.ndarray = np.asarray([0.05, 1]),
         seed: int = 0,
         control_dt: float = 0.02,
         physics_dt: float = 0.002,
@@ -230,24 +230,14 @@ class PandaPickCubeGymEnv(MujocoGymEnv):
         return obs, rew, terminated, False, {"succeed": success}
 
     def render(self):
-        self._viewer.render()
         rendered_frames = []
         for cam_id in self.camera_id:
             self._viewer.update_scene(self.data, camera=cam_id)
             rendered_frames.append(
                 self._viewer.render()
             )
-            self._viewer.render()
         return rendered_frames
 
-    # def render(self):
-    #     self._viewer.render(self.render_mode)
-    #     rendered_frames = []
-    #     for cam_id in self.camera_id:
-    #         rendered_frames.append(
-    #             self._viewer.render(render_mode="rgb_array", camera_id=cam_id)
-    #         )
-    #     return rendered_frames
 
     def _compute_observation(self) -> dict:
         obs = {}
@@ -276,16 +266,21 @@ class PandaPickCubeGymEnv(MujocoGymEnv):
 
         return obs
 
+    # def _compute_reward(self) -> float:
+    #     block_pos = self._data.sensor("block_pos").data
+    #     tcp_pos = self._data.sensor("2f85/pinch_pos").data
+    #     dist = np.linalg.norm(block_pos - tcp_pos)
+    #     r_close = np.exp(-20 * dist)
+    #     r_lift = (block_pos[2] - self._z_init) / (self._z_success - self._z_init)
+    #     r_lift = np.clip(r_lift, 0.0, 1.0)
+    #     rew = 0.3 * r_close + 0.7 * r_lift
+    #     return rew
+    
     def _compute_reward(self) -> float:
         block_pos = self._data.sensor("block_pos").data
-        tcp_pos = self._data.sensor("2f85/pinch_pos").data
-        dist = np.linalg.norm(block_pos - tcp_pos)
-        r_close = np.exp(-20 * dist)
-        r_lift = (block_pos[2] - self._z_init) / (self._z_success - self._z_init)
-        r_lift = np.clip(r_lift, 0.0, 1.0)
-        rew = 0.3 * r_close + 0.7 * r_lift
-        return rew
-    
+        lift = block_pos[2] - self._z_init
+        return float(lift > 0.2)
+
     def _is_success(self) -> bool:
         block_pos = self._data.sensor("block_pos").data
         tcp_pos = self._data.sensor("2f85/pinch_pos").data
