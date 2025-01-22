@@ -137,14 +137,6 @@ class PandaPickCubeGymEnv(MujocoGymEnv):
             dtype=np.float32,
         )
 
-        # from gymnasium.envs.mujoco.mujoco_rendering import MujocoRenderer
-
-        # self._viewer = MujocoRenderer(
-        #     self.model,
-        #     self.data,
-        # )
-        # self._viewer.render(self.render_mode)
-
         self._viewer = mujoco.Renderer(
             self.model,
             height=render_spec.height,
