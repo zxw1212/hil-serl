@@ -8,7 +8,6 @@ from franka_env.envs.wrappers import (
     Quat2EulerWrapper,
     JoystickIntervention,
     MultiCameraBinaryRewardClassifierWrapper,
-    # GripperPenaltyWrapper,
     GripperCloseEnv,
     ControllerType
 )
@@ -41,7 +40,7 @@ class TrainConfig(DefaultTrainingConfig):
     classifier = False
 
     def get_environment(self, fake_env=False, save_video=False, classifier=False):
-        env = PandaPickCubeGymEnv(render_mode="human", image_obs=True, time_limit=100.0, control_dt=0.1)
+        env = PandaPickCubeGymEnv(render_mode="human", image_obs=True, reward_type="sparse", time_limit=100.0, control_dt=0.1)
         if not fake_env:
             env = JoystickIntervention(env=env, controller_type=self.controller_type)
         env = RelativeFrame(env)

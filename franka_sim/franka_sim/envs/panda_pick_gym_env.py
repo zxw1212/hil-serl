@@ -39,8 +39,10 @@ class PandaPickCubeGymEnv(MujocoGymEnv):
         render_spec: GymRenderingSpec = GymRenderingSpec(),
         render_mode: Literal["rgb_array", "human"] = "rgb_array",
         image_obs: bool = False,
+        reward_type: str = "sparse",
     ):
         self._action_scale = action_scale
+        self.reward_type = reward_type
 
         super().__init__(
             xml_path=_XML_PATH,
@@ -258,20 +260,20 @@ class PandaPickCubeGymEnv(MujocoGymEnv):
 
         return obs
 
-    # def _compute_reward(self) -> float:
-    #     block_pos = self._data.sensor("block_pos").data
-    #     tcp_pos = self._data.sensor("2f85/pinch_pos").data
-    #     dist = np.linalg.norm(block_pos - tcp_pos)
-    #     r_close = np.exp(-20 * dist)
-    #     r_lift = (block_pos[2] - self._z_init) / (self._z_success - self._z_init)
-    #     r_lift = np.clip(r_lift, 0.0, 1.0)
-    #     rew = 0.3 * r_close + 0.7 * r_lift
-    #     return rew
-    
     def _compute_reward(self) -> float:
-        block_pos = self._data.sensor("block_pos").data
-        lift = block_pos[2] - self._z_init
-        return float(lift > 0.2)
+        if self.reward_type == "dense":
+            block_pos = self._data.sensor("block_pos").data
+            tcp_pos = self._data.sensor("2f85/pinch_pos").data
+            dist = np.linalg.norm(block_pos - tcp_pos)
+            r_close = np.exp(-20 * dist)
+            r_lift = (block_pos[2] - self._z_init) / (self._z_success - self._z_init)
+            r_lift = np.clip(r_lift, 0.0, 1.0)
+            rew = 0.3 * r_close + 0.7 * r_lift
+            return rew
+        else:
+            block_pos = self._data.sensor("block_pos").data
+            lift = block_pos[2] - self._z_init
+            return float(lift > 0.2)
 
     def _is_success(self) -> bool:
         block_pos = self._data.sensor("block_pos").data
