@@ -8,10 +8,12 @@ from franka_env.envs.wrappers import (
     Quat2EulerWrapper,
     JoystickIntervention,
     MultiCameraBinaryRewardClassifierWrapper,
-    GripperPenaltyWrapper,
     GripperCloseEnv,
     ControllerType
 )
+
+from experiments.pick_cube_sim.wrapper import GripperPenaltyWrapper
+
 from franka_env.envs.relative_env import RelativeFrame
 from serl_launcher.wrappers.serl_obs_wrappers import SERLObsWrapper
 from serl_launcher.wrappers.chunking import ChunkingWrapper
@@ -38,7 +40,7 @@ class TrainConfig(DefaultTrainingConfig):
     classifier = False
 
     def get_environment(self, fake_env=False, save_video=False, classifier=False):
-        env = PandaPickCubeGymEnv(render_mode="human", image_obs=True, time_limit=100.0, control_dt=0.1)
+        env = PandaPickCubeGymEnv(render_mode="human", image_obs=True, reward_type="sparse", time_limit=100.0, control_dt=0.1)
         if not fake_env:
             env = JoystickIntervention(env=env, controller_type=self.controller_type)
         env = RelativeFrame(env)
