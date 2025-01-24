@@ -1,5 +1,9 @@
 import gymnasium as gym
-
+# This is copied from the USB task.
+# It's confusing that the penalty is a negative number but I've verified this is what is intended.
+# Search for `grasp_rewards = batch["rewards"] + batch["grasp_penalty"]`
+# Also, the reward is not modified by this wrapper. Instead a "grasp_penalty" key is added to the info and used
+# downstream where needed.
 
 class GripperPenaltyWrapper(gym.Wrapper):
     def __init__(self, env, penalty=-0.05):
