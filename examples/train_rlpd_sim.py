@@ -381,7 +381,7 @@ def main(_):
     env = config.get_environment(
         fake_env=False,
         save_video=FLAGS.save_video,
-        classifier=False,
+        classifier=True,
     )
     env = RecordEpisodeStatistics(env)
 

@@ -30,7 +30,7 @@ class TrainConfig(DefaultTrainingConfig):
     proprio_keys = ["tcp_pose", "tcp_vel", "gripper_pose"]
     buffer_period = 2000
     replay_buffer_capacity = 50000
-    batch_size = 32
+    batch_size = 256
     random_steps = 0
     checkpoint_period = 5000
     steps_per_update = 50
@@ -57,8 +57,7 @@ class TrainConfig(DefaultTrainingConfig):
 
             def reward_func(obs):
                 sigmoid = lambda x: 1 / (1 + jnp.exp(-x))
-                # added check for z position to further robustify classifier, but should work without as well
-                return int(sigmoid(classifier(obs)) > 0.85 and obs['state'][0, 6] > 0.04)
+                return int(sigmoid(classifier(obs))[0] > 0.95)
 
             env = MultiCameraBinaryRewardClassifierWrapper(env, reward_func)
         env = GripperPenaltyWrapper(env, penalty=-0.02)

@@ -66,7 +66,7 @@ def main(_):
                 )
             )
             obs = next_obs
-            if success_key:
+            if success_key or info["succeed"]:
                 successes.append(transition)
                 pbar.update(1)
                 success_key = False
