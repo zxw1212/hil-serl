@@ -22,7 +22,37 @@ FLAGS = flags.FLAGS
 flags.DEFINE_string("exp_name", None, "Name of experiment corresponding to folder.")
 flags.DEFINE_integer("num_epochs", 150, "Number of training epochs.")
 flags.DEFINE_integer("batch_size", 256, "Batch size.")
+flags.DEFINE_float("eval_split", 0.15, "Fraction of data to use for evaluation.")
 
+def split_buffer(buffer, env, eval_split):
+    """Split a ReplayBuffer into training and evaluation buffers."""
+    buffer_size = len(buffer)
+    eval_size = int(eval_split * buffer_size)
+    train_size = buffer_size - eval_size
+
+    # Create new buffers for training and evaluation
+    train_buffer = ReplayBuffer(
+        env.observation_space,
+        env.action_space,
+        capacity=train_size,
+        include_label=True,
+    )
+    eval_buffer = ReplayBuffer(
+        env.observation_space,
+        env.action_space,
+        capacity=eval_size,
+        include_label=True,
+    )
+
+    # Copy data into the new buffers
+    for i in range(buffer_size):
+        data = buffer.sample(batch_size=1, indx=[i])
+        if i < train_size:
+            train_buffer.insert(data)
+        else:
+            eval_buffer.insert(data)
+
+    return train_buffer, eval_buffer
 
 def main(_):
     assert FLAGS.exp_name in CONFIG_MAPPING, 'Experiment folder not found.'
@@ -50,7 +80,17 @@ def main(_):
             trans['actions'] = env.action_space.sample()
             pos_buffer.insert(trans)
             
-    pos_iterator = pos_buffer.get_iterator(
+    # Split positive buffer into training and evaluation
+    train_pos_buffer, eval_pos_buffer = split_buffer(pos_buffer, env, FLAGS.eval_split)
+
+    pos_iterator = train_pos_buffer.get_iterator(
+        sample_args={
+            "batch_size": FLAGS.batch_size // 2,
+        },
+        device=sharding.replicate(),
+    )
+    
+    eval_pos_iterator = eval_pos_buffer.get_iterator(
         sample_args={
             "batch_size": FLAGS.batch_size // 2,
         },
@@ -76,15 +116,27 @@ def main(_):
             trans['actions'] = env.action_space.sample()
             neg_buffer.insert(trans)
             
-    neg_iterator = neg_buffer.get_iterator(
+    # Split negative buffer into training and evaluation
+    train_neg_buffer, eval_neg_buffer = split_buffer(neg_buffer, env, FLAGS.eval_split)
+
+    neg_iterator = train_neg_buffer.get_iterator(
+        sample_args={
+            "batch_size": FLAGS.batch_size // 2,
+        },
+        device=sharding.replicate(),
+    )
+    
+    eval_neg_iterator = eval_neg_buffer.get_iterator(
         sample_args={
             "batch_size": FLAGS.batch_size // 2,
         },
         device=sharding.replicate(),
     )
 
-    print(f"failed buffer size: {len(neg_buffer)}")
-    print(f"success buffer size: {len(pos_buffer)}")
+    print(f"Training positive buffer size: {len(train_pos_buffer)}")
+    print(f"Evaluation positive buffer size: {len(eval_pos_buffer)}")
+    print(f"Training negative buffer size: {len(train_neg_buffer)}")
+    print(f"Evaluation negative buffer size: {len(eval_neg_buffer)}")
 
     rng = jax.random.PRNGKey(0)
     rng, key = jax.random.split(rng)
@@ -126,6 +178,14 @@ def main(_):
 
         return state.apply_gradients(grads=grads), loss, train_accuracy
 
+    @jax.jit
+    def eval_step(state, batch, key):
+        logits = state.apply_fn(
+            {"params": state.params}, batch["observations"], train=False, rngs={"dropout": key}
+        )
+        eval_accuracy = jnp.mean((nn.sigmoid(logits) >= 0.85) == batch["labels"])
+        return eval_accuracy
+
     for epoch in tqdm(range(FLAGS.num_epochs)):
         # Sample equal number of positive and negative examples
         pos_sample = next(pos_iterator)
@@ -146,8 +206,22 @@ def main(_):
         rng, key = jax.random.split(rng)
         classifier, train_loss, train_accuracy = train_step(classifier, batch, key)
 
+        # Evaluate on the evaluation set
+        eval_pos_sample = next(eval_pos_iterator)
+        eval_neg_sample = next(eval_neg_iterator)
+        eval_batch = concat_batches(eval_pos_sample, eval_neg_sample, axis=0)
+        
+        rng, key = jax.random.split(rng)
+        eval_batch = eval_batch.copy(
+            add_or_replace={
+                "observations": eval_batch["observations"],
+                "labels": eval_batch["labels"][..., None],
+            }
+        )
+        eval_accuracy = eval_step(classifier, eval_batch, key)
+
         print(
-            f"Epoch: {epoch+1}, Train Loss: {train_loss:.4f}, Train Accuracy: {train_accuracy:.4f}"
+            f"Epoch: {epoch+1}, Train Loss: {train_loss:.4f}, Train Accuracy: {train_accuracy:.4f}, Eval Accuracy: {eval_accuracy:.4f}"
         )
 
     checkpoints.save_checkpoint(
