@@ -12,13 +12,16 @@ class SpaceMouseExpert:
     """
 
     def __init__(self):
+        print("Opening SpaceMouse...")
         pyspacemouse.open()
+        print("SpaceMouse opened.")
 
         # Manager to handle shared state between processes
         self.manager = multiprocessing.Manager()
         self.latest_data = self.manager.dict()
         self.latest_data["action"] = [0.0] * 6  # Using lists for compatibility
-        self.latest_data["buttons"] = [0, 0, 0, 0]
+        # self.latest_data["buttons"] = [0, 0, 0, 0]
+        self.latest_data["buttons"] = [0, 0]
 
         # Start a process to continuously read the SpaceMouse state
         self.process = multiprocessing.Process(target=self._read_spacemouse)
@@ -29,7 +32,8 @@ class SpaceMouseExpert:
         while True:
             state = pyspacemouse.read_all()
             action = [0.0] * 6
-            buttons = [0, 0, 0, 0]
+            # buttons = [0, 0, 0, 0]
+            buttons = [0, 0]
 
             if len(state) == 2:
                 action = [
