@@ -1,0 +1,7 @@
+*.pyc
+examples/experiments/__pycache__/
+examples/experiments/egg_flip/__pycache__/
+examples/experiments/usb_pickup_insertion/classifier_ckpt/
+examples/experiments/usb_pickup_insertion/classifier_data/
+examples/experiments/usb_pickup_insertion/demo_data/
+examples/experiments/usb_pickup_insertion/test3/

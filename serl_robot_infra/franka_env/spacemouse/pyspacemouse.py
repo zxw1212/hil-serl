@@ -549,21 +549,24 @@ device_specs = {
             "yaw": AxisSpec(channel=1, byte1=11, byte2=12, scale=1),
         },
         button_mapping=[
-            ButtonSpec(channel=3, byte=1, bit=0),  # MENU
-            ButtonSpec(channel=3, byte=3, bit=7),  # ALT
-            ButtonSpec(channel=3, byte=4, bit=1),  # CTRL
-            ButtonSpec(channel=3, byte=4, bit=0),  # SHIFT
-            ButtonSpec(channel=3, byte=3, bit=6),  # ESC
-            ButtonSpec(channel=3, byte=2, bit=4),  # 1
-            ButtonSpec(channel=3, byte=2, bit=5),  # 2
-            ButtonSpec(channel=3, byte=2, bit=6),  # 3
-            ButtonSpec(channel=3, byte=2, bit=7),  # 4
-            ButtonSpec(channel=3, byte=2, bit=0),  # ROLL CLOCKWISE
-            ButtonSpec(channel=3, byte=1, bit=2),  # TOP
-            ButtonSpec(channel=3, byte=4, bit=2),  # ROTATION
-            ButtonSpec(channel=3, byte=1, bit=5),  # FRONT
-            ButtonSpec(channel=3, byte=1, bit=4),  # REAR
-            ButtonSpec(channel=3, byte=1, bit=1),  # FIT
+            # ButtonSpec(channel=3, byte=1, bit=0),  # MENU
+            # ButtonSpec(channel=3, byte=3, bit=7),  # ALT
+            # ButtonSpec(channel=3, byte=4, bit=1),  # CTRL
+            # ButtonSpec(channel=3, byte=4, bit=0),  # SHIFT
+            # ButtonSpec(channel=3, byte=3, bit=6),  # ESC
+            # ButtonSpec(channel=3, byte=2, bit=4),  # 1
+            # ButtonSpec(channel=3, byte=2, bit=5),  # 2
+            # ButtonSpec(channel=3, byte=2, bit=6),  # 3
+            # ButtonSpec(channel=3, byte=2, bit=7),  # 4
+            # ButtonSpec(channel=3, byte=2, bit=0),  # ROLL CLOCKWISE
+            # ButtonSpec(channel=3, byte=1, bit=2),  # TOP
+            # ButtonSpec(channel=3, byte=4, bit=2),  # ROTATION
+            # ButtonSpec(channel=3, byte=1, bit=5),  # FRONT
+            # ButtonSpec(channel=3, byte=1, bit=4),  # REAR
+            # ButtonSpec(channel=3, byte=1, bit=1),  # FIT
+
+            ButtonSpec(channel=3, byte=1, bit=1),
+            ButtonSpec(channel=3, byte=1, bit=0),
         ],
         axis_scale=350.0,
     ),

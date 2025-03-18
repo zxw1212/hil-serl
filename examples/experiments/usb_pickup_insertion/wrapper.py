@@ -27,7 +27,8 @@ class USBEnv(FrankaEnv):
                     RSCapture(name=cam_name, **kwargs)
                 )
                 self.cap[cam_name] = cap
-
+    
+    # 拉升---target---gripper关---target侧方(拔掉usb)--reset pose--gripper开--返回obs
     def reset(self, **kwargs):
         self._recover()
         self._update_currpos()

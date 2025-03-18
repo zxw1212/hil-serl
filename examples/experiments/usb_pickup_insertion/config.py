@@ -19,42 +19,43 @@ from experiments.usb_pickup_insertion.wrapper import USBEnv, GripperPenaltyWrapp
 
 
 class EnvConfig(DefaultEnvConfig):
-    SERVER_URL: str = "http://127.0.0.2:5000/"
+    SERVER_URL: str = "http://127.0.0.1:5000/"
     REALSENSE_CAMERAS = {
         "wrist_1": {
-            "serial_number": "127122270350",
-            "dim": (1280, 720),
-            "exposure": 10500,
+            "serial_number": "230322272297",
+            "dim": (640, 360),
+            "exposure": 17000,
         },
         "wrist_2": {
-            "serial_number": "127122270146",
-            "dim": (1280, 720),
-            "exposure": 10500,
+            "serial_number": "230322276360",
+            "dim": (640, 360),
+            "exposure": 17000,
         },
         "side_policy": {
-            "serial_number": "130322274175",
+            "serial_number": "230322274773",
             "dim": (1280, 720),
             "exposure": 13000,
         },
         "side_classifier": {
-            "serial_number": "130322274175",
+            "serial_number": "230322274773",
             "dim": (1280, 720),
             "exposure": 13000,
         },
     }
-    IMAGE_CROP = {"wrist_1": lambda img: img[50:-200, 200:-200],
-                  "wrist_2": lambda img: img[:-200, 200:-200],
-                  "side_policy": lambda img: img[250:500, 350:650],
-                  "side_classifier": lambda img: img[270:398, 500:628]}
-    TARGET_POSE = np.array([0.553,0.1769683108549487,0.25097833796596336, np.pi, 0, -np.pi/2])
-    RESET_POSE = TARGET_POSE + np.array([0, 0.03, 0.05, 0, 0, 0])
-    ACTION_SCALE = np.array([0.015, 0.1, 1])
+    IMAGE_CROP = {"wrist_1": lambda img: img[0:-1, 0:-1],
+                  "wrist_2": lambda img: img[0:-1, 0:-1],
+                  "side_policy": lambda img: img[220:-220, 0:-1],
+                  "side_classifier": lambda img: img[200:-200, 0:-1]
+                  }
+    TARGET_POSE = np.array([0.49180,-0.1030,0.2845, 3.14,0.0,1.57])
+    RESET_POSE = TARGET_POSE + np.array([0, 0.12, 0, 0, 0, 0])
+    ACTION_SCALE = np.array([0.04, 0.18, 1])
     RANDOM_RESET = True
     DISPLAY_IMAGE = True
     RANDOM_XY_RANGE = 0.01
     RANDOM_RZ_RANGE = 0.1
-    ABS_POSE_LIMIT_HIGH = TARGET_POSE + np.array([0.03, 0.06, 0.05, 0.1, 0.1, 0.3])
-    ABS_POSE_LIMIT_LOW = TARGET_POSE - np.array([0.03, 0.01, 0.03, 0.1, 0.1, 0.3])
+    ABS_POSE_LIMIT_HIGH = TARGET_POSE + np.array([0.08, 0.3, 0.08, 0.1, 0.1, 1.57])
+    ABS_POSE_LIMIT_LOW = TARGET_POSE - np.array([0.08, 0.08, 0.08, 0.1, 0.1, 1.57])
     COMPLIANCE_PARAM = {
         "translational_stiffness": 2000,
         "translational_damping": 89,
@@ -95,15 +96,17 @@ class EnvConfig(DefaultEnvConfig):
         "rotational_clip_neg_z": 0.03,
         "rotational_Ki": 0.0,
     }
-    MAX_EPISODE_LENGTH = 120
+    MAX_EPISODE_LENGTH = 360
 
 
 class TrainConfig(DefaultTrainingConfig):
     image_keys = ["side_policy", "wrist_1", "wrist_2"]
     classifier_keys = ["side_classifier"]
-    proprio_keys = ["tcp_pose", "tcp_vel", "tcp_force", "tcp_torque", "gripper_pose"]
-    checkpoint_period = 2000
+    proprio_keys = ["tcp_pose", "tcp_vel", "gripper_pose"]
+    checkpoint_period = 500
+    # replay_buffer_capacity = 50000
     cta_ratio = 2
+    batch_size = 256
     random_steps = 0
     discount = 0.98
     buffer_period = 1000
@@ -130,7 +133,9 @@ class TrainConfig(DefaultTrainingConfig):
 
             def reward_func(obs):
                 sigmoid = lambda x: 1 / (1 + jnp.exp(-x))
-                return int(sigmoid(classifier(obs)) > 0.7 and obs["state"][0, 0] > 0.4)
+                # return int(sigmoid(classifier(obs))[0] > 0.7 and obs["state"][0, 0] > 0.4)
+                # print("========",sigmoid(classifier(obs))[0])
+                return int(sigmoid(classifier(obs))[0] > 0.7)
 
             env = MultiCameraBinaryRewardClassifierWrapper(env, reward_func)
         env = GripperPenaltyWrapper(env, penalty=-0.02)

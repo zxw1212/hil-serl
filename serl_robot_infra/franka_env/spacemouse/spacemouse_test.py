@@ -17,6 +17,8 @@ def test_spacemouse():
         while True:
             action, buttons = spacemouse0.get_action()
             print(f"Spacemouse action: {action}, buttons: {buttons}")
+            left_button, right_button = tuple(buttons)
+            print(f"Left button: {left_button}, right button: {right_button}")
             time.sleep(0.1)
 
 
