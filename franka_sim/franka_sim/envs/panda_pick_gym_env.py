@@ -219,7 +219,13 @@ class PandaPickCubeGymEnv(MujocoGymEnv):
         success = self._is_success()
         block_pos = self._data.sensor("block_pos").data
         outside_bounds = np.any(block_pos[:2] < (_SAMPLING_BOUNDS[0] - 0.05)) or np.any(block_pos[:2] > (_SAMPLING_BOUNDS[1] + 0.05))
-        terminated = self.time_limit_exceeded() or success or outside_bounds
+        # if not classifier:
+        # terminated = self.time_limit_exceeded() or success or outside_bounds
+        # if classifier:
+        terminated = self.time_limit_exceeded() or outside_bounds
+
+        # for recording successful transitions
+        # terminated = success or outside_bounds
 
         return obs, rew, terminated, False, {"succeed": success}
 

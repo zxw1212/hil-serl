@@ -12,7 +12,7 @@ from experiments.mappings import CONFIG_MAPPING
 from franka_sim.utils.viewer_utils import DualMujocoViewer
 
 FLAGS = flags.FLAGS
-flags.DEFINE_string("exp_name", None, "Name of experiment corresponding to folder.")
+flags.DEFINE_string("exp_name", "pick_cube_sim", "Name of experiment corresponding to folder.")
 flags.DEFINE_integer("successes_needed", 200, "Number of successful transistions to collect.")
 
 
@@ -66,15 +66,18 @@ def main(_):
                 )
             )
             obs = next_obs
-            if success_key or info["succeed"]:
+            # if success_key or info["succeed"]:
+            if success_key:
                 successes.append(transition)
                 pbar.update(1)
                 success_key = False
             else:
                 failures.append(transition)
 
-            if done or truncated:
-                obs, _ = env.reset()
+            # if done or truncated:
+            #     obs, _ = env.reset()
+            if done:
+                print("============success or out of bound================") # remember to change franka_sim/franka_sim/envs/panda_pick_gym_env.py terminated = ...
             if len(successes) >= success_needed:
                 break
 

@@ -28,16 +28,17 @@ class DualMujocoViewer:
             show_right_ui=False,
             key_callback=self.key_callback
         )
-        self.viewer_2 = mujoco.viewer.launch_passive(
-            self.model,
-            self.data,
-            show_left_ui=False,
-            show_right_ui=False,
-            key_callback=self.key_callback
-        )
+        # self.viewer_2 = mujoco.viewer.launch_passive(
+        #     self.model,
+        #     self.data,
+        #     show_left_ui=False,
+        #     show_right_ui=False,
+        #     key_callback=self.key_callback
+        # )
 
     def is_running(self):
-        return self.viewer_1.is_running() and self.viewer_2.is_running()
+        # return self.viewer_1.is_running() and self.viewer_2.is_running()
+        return self.viewer_1.is_running()
 
     def sync(self):
         if self.viewer_1:

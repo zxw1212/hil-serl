@@ -213,6 +213,10 @@ def actor(agent, data_store, intvn_data_store, env, sampling_rng):
 
                 obs = next_obs
                 if done or truncated:
+                    if reward:
+                        print("===================Success================")
+                    else:
+                        print("*****************Time out or Out of bound*****************")
                     info["episode"]["intervention_count"] = intervention_count
                     info["episode"]["intervention_steps"] = intervention_steps
                     stats = {"environment": info}  # send stats to the learner to log
@@ -382,6 +386,7 @@ def main(_):
         fake_env=False,
         save_video=FLAGS.save_video,
         classifier=True,
+        # classifier=False,
     )
     env = RecordEpisodeStatistics(env)
 
