@@ -33,6 +33,8 @@ flags.DEFINE_integer("eval_n_trajs", 0, "Number of trajectories to evaluate.")
 flags.DEFINE_integer("train_steps", 20_000, "Number of pretraining steps.")
 flags.DEFINE_bool("save_video", False, "Save video of the evaluation.")
 
+# python ../../train_bc.py --exp_name banana_pick_place --bc_checkpoint_path /home/zxw/hil_serl/main/hil-serl/examples/experiments/banana_pick_place/bc_ckpt
+# python ../../train_bc.py --exp_name banana_pick_place --bc_checkpoint_path /home/zxw/hil_serl/main/hil-serl/examples/experiments/banana_pick_place/bc_ckpt --eval_n_trajs 5
 
 flags.DEFINE_boolean(
     "debug", False, "Debug mode."

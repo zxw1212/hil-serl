@@ -5,3 +5,4 @@ examples/experiments/usb_pickup_insertion/classifier_ckpt/
 examples/experiments/usb_pickup_insertion/classifier_data/
 examples/experiments/usb_pickup_insertion/demo_data/
 examples/experiments/usb_pickup_insertion/test3/
+examples/experiments/banana_pick_place/

@@ -17,10 +17,8 @@ from natsort import natsorted
 from serl_launcher.agents.continuous.sac import SACAgent
 from serl_launcher.agents.continuous.sac_hybrid_single import SACAgentHybridSingleArm
 from serl_launcher.agents.continuous.sac_hybrid_dual import SACAgentHybridDualArm
-from serl_launcher.agents.continuous.bc import BCAgent
 from serl_launcher.utils.timer_utils import Timer
 from serl_launcher.utils.train_utils import concat_batches
-from serl_launcher.utils.action_combine import combine_actions
 
 from agentlace.trainer import TrainerServer, TrainerClient
 from agentlace.data.data_store import QueuedDataStore
@@ -29,7 +27,6 @@ from serl_launcher.utils.launcher import (
     make_sac_pixel_agent,
     make_sac_pixel_agent_hybrid_single_arm,
     make_sac_pixel_agent_hybrid_dual_arm,
-    make_bc_agent,
     make_trainer_config,
     make_wandb_logger,
 )
@@ -50,9 +47,6 @@ flags.DEFINE_integer("eval_checkpoint_step", 0, "Step to evaluate the checkpoint
 flags.DEFINE_integer("eval_n_trajs", 0, "Number of trajectories to evaluate.")
 flags.DEFINE_boolean("save_video", False, "Save video.")
 
-flags.DEFINE_string("bc_checkpoint_path", '/home/zxw/hil_serl/main/hil-serl/examples/experiments/banana_pick_place/bc_ckpt', "Path to save checkpoints.")
-
-
 flags.DEFINE_boolean(
     "debug", False, "Debug mode."
 )  # debug mode will disable wandb logging
@@ -70,7 +64,7 @@ def print_green(x):
 ##############################################################################
 
 
-def actor(agent, data_store, intvn_data_store, env, sampling_rng, bc_agent=None):
+def actor(agent, data_store, intvn_data_store, env, sampling_rng):
     """
     This is the actor loop, which runs when "--actor" is set to True.
     """
@@ -155,14 +149,6 @@ def actor(agent, data_store, intvn_data_store, env, sampling_rng, bc_agent=None)
     intervention_count = 0
     intervention_steps = 0
 
-    # init the sampling_rng for bc_agent
-    if bc_agent is not None:
-        bc_rng = jax.random.PRNGKey(FLAGS.seed)
-        bc_sampling_rng = jax.device_put(bc_rng, sharding.replicate())
-
-        bc_weight = 1.0
-        sac_weight = 0.01
-
     pbar = tqdm.tqdm(range(start_step, config.max_steps), dynamic_ncols=True)
     for step in pbar:
         timer.tick("total")
@@ -172,36 +158,12 @@ def actor(agent, data_store, intvn_data_store, env, sampling_rng, bc_agent=None)
                 actions = env.action_space.sample()
             else:
                 sampling_rng, key = jax.random.split(sampling_rng)
-                sac_actions = agent.sample_actions(
+                actions = agent.sample_actions(
                     observations=jax.device_put(obs),
                     seed=key,
                     argmax=False,
                 )
-                sac_actions = np.asarray(jax.device_get(sac_actions))
-
-                if bc_agent is None:
-                    actions = sac_actions
-                else:
-                    # Sample actions from BC agent, note there is no need to update the sampling_rng in BC eval mode
-                    bc_rng, bc_key = jax.random.split(bc_sampling_rng)
-                    obs_for_bc = copy.deepcopy(obs)
-                    # delete ['state'][:, :7] in obs_for_bc to resize it
-                    obs_for_bc['state'] = obs_for_bc['state'][:, 7:]
-                    bc_actions = bc_agent.sample_actions(
-                        observations=jax.device_put(obs_for_bc),
-                        seed=bc_key,
-                    )
-                    bc_actions = np.asarray(jax.device_get(bc_actions))
-
-                    # Combine SAC and BC actions
-                    mark_step = 8000.0
-                    # alpha = 1.0 ---> 0.0 from period 0 to mark_step
-                    alpha = 1.0 - min(1.0, step / mark_step)
-                    # sac_weight = alpha * 0.05 + (1.0 - alpha) * 1.0
-                    actions = combine_actions(bc_actions, sac_actions, env, True, bc_weight, sac_weight)
-                    print("step"    , step)
-                    print("sac_weight", sac_weight)
-
+                actions = np.asarray(jax.device_get(actions))
 
         # Step environment
         with timer.context("step_env"):
@@ -215,7 +177,6 @@ def actor(agent, data_store, intvn_data_store, env, sampling_rng, bc_agent=None)
             # override the action with the intervention action
             if "intervene_action" in info:
                 actions = info.pop("intervene_action")
-                sac_actions = info.pop("only_mouse_action")
                 intervention_steps += 1
                 if not already_intervened:
                     intervention_count += 1
@@ -224,13 +185,9 @@ def actor(agent, data_store, intvn_data_store, env, sampling_rng, bc_agent=None)
                 already_intervened = False
 
             running_return += reward
-
-            combined_action = alpha * actions + (1 - alpha) * sac_actions
             transition = dict(
                 observations=obs,
-                # actions=actions,
-                actions=sac_actions,
-                # actions = combined_action,
+                actions=actions,
                 next_observations=next_obs,
                 rewards=reward,
                 masks=1.0 - done,
@@ -546,30 +503,6 @@ def main(_):
         )
 
     elif FLAGS.actor:
-        if FLAGS.bc_checkpoint_path is not None:
-            assert os.path.exists(FLAGS.bc_checkpoint_path)
-            # Initialize BC agent
-            sample_obs = env.observation_space.sample()
-            # delete ['state'][:, :7](BC action) in sample_obs to resize it
-            sample_obs['state'] = sample_obs['state'][:, 7:]
-            bc_agent: BCAgent = make_bc_agent(
-                seed=FLAGS.seed,
-                sample_obs=sample_obs,
-                sample_action=env.action_space.sample(),
-                image_keys=config.image_keys,
-                encoder_type=config.encoder_type,
-            )
-
-            # Load BC agent checkpoint
-            bc_ckpt = checkpoints.restore_checkpoint(
-                FLAGS.bc_checkpoint_path,
-                bc_agent.state,
-            )
-            bc_agent = bc_agent.replace(state=bc_ckpt)
-        else:
-            bc_agent = None
-
-
         sampling_rng = jax.device_put(sampling_rng, sharding.replicate())
         data_store = QueuedDataStore(50000)  # the queue size on the actor
         intvn_data_store = QueuedDataStore(50000)
@@ -582,7 +515,6 @@ def main(_):
             intvn_data_store,
             env,
             sampling_rng,
-            bc_agent,  # Pass BC agent to the actor
         )
 
     else:

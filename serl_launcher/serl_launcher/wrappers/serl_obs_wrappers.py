@@ -26,6 +26,7 @@ class SERLObsWrapper(gym.ObservationWrapper):
         )
 
     def observation(self, obs):
+        # reorder the key in order or A---Z
         obs = {
             "state": flatten(
                 self.proprio_space,
@@ -33,6 +34,9 @@ class SERLObsWrapper(gym.ObservationWrapper):
             ),
             **(obs["images"]),
         }
+
+        # print(self.proprio_keys)
+        # print(self.proprio_space.spaces.keys())
         return obs
 
     def reset(self, **kwargs):

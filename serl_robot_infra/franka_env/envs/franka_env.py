@@ -132,6 +132,10 @@ class FrankaEnv(gym.Env):
             np.ones((7,), dtype=np.float32),
         )
 
+        # action offset like bc reference
+        self.sac_action_offset = None
+        self.sac_action_scale = None
+
         self.observation_space = gym.spaces.Dict(
             {
                 "state": gym.spaces.Dict(
@@ -143,6 +147,7 @@ class FrankaEnv(gym.Env):
                         "gripper_pose": gym.spaces.Box(-1, 1, shape=(1,)),
                         "tcp_force": gym.spaces.Box(-np.inf, np.inf, shape=(3,)),
                         "tcp_torque": gym.spaces.Box(-np.inf, np.inf, shape=(3,)),
+                        "BC_action": gym.spaces.Box(-1, 1, shape=(7,)), # delta xyz rpy and gripper
                     }
                 ),
                 "images": gym.spaces.Dict(
@@ -336,7 +341,8 @@ class FrankaEnv(gym.Env):
 
     def reset(self, joint_reset=False, **kwargs):
         self.last_gripper_act = time.time()
-        requests.post(self.url + "update_param", json=self.config.COMPLIANCE_PARAM)
+        requests.post(self.url + "update_param", json=self.config.PRECISION_PARAM)
+        time.sleep(0.5)
         if self.save_video:
             self.save_video_recording()
 
@@ -409,6 +415,11 @@ class FrankaEnv(gym.Env):
                 cap.close()
         except Exception as e:
             print(f"Failed to close cameras: {e}")
+    
+    def record_sac_action_offset(self, action_offset: np.ndarray):
+        self.sac_action_offset = action_offset
+    def get_sac_action_offset(self):
+        return self.sac_action_offset
 
     def _recover(self):
         """Internal function to recover the robot from error state."""
@@ -473,12 +484,17 @@ class FrankaEnv(gym.Env):
 
     def _get_obs(self) -> dict:
         images = self.get_im()
+        if self.sac_action_offset is None:
+            bc_action = np.zeros((7,))
+        else:
+            bc_action = self.sac_action_offset
         state_observation = {
             "tcp_pose": self.currpos,
             "tcp_vel": self.currvel,
             "gripper_pose": self.curr_gripper_pos,
             "tcp_force": self.currforce,
             "tcp_torque": self.currtorque,
+            "BC_action": bc_action,
         }
         return copy.deepcopy(dict(images=images, state=state_observation))
 

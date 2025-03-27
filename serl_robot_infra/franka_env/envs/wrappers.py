@@ -9,6 +9,7 @@ import requests
 from scipy.spatial.transform import Rotation as R
 from franka_env.envs.franka_env import FrankaEnv
 from typing import List
+from serl_launcher.utils.action_combine import combine_actions
 
 sigmoid = lambda x: 1 / (1 + np.exp(-x))
 
@@ -216,6 +217,15 @@ class SpacemouseIntervention(gym.ActionWrapper):
         self.left, self.right = False, False
         self.action_indices = action_indices
 
+        self.bc_weight = 1.0
+        self.sac_weight = 1.0
+    
+    def record_expert_action(self, action):
+        self.expert_action = action
+    
+    def get_expert_action(self):
+        return self.expert_action
+
     def action(self, action: np.ndarray) -> np.ndarray:
         """
         Input:
@@ -245,9 +255,16 @@ class SpacemouseIntervention(gym.ActionWrapper):
             filtered_expert_a = np.zeros_like(expert_a)
             filtered_expert_a[self.action_indices] = expert_a[self.action_indices]
             expert_a = filtered_expert_a
+        
+        self.record_expert_action(expert_a)
 
         if intervened:
-            return expert_a, True
+            bc_actions = self.env.get_sac_action_offset()
+            if bc_actions is not None:
+                combined_actions = combine_actions(bc_actions, expert_a, self.env, False, self.bc_weight, self.sac_weight)
+                return combined_actions, True
+            else:
+                return expert_a, True
 
         return action, False
 
@@ -258,6 +275,7 @@ class SpacemouseIntervention(gym.ActionWrapper):
         obs, rew, done, truncated, info = self.env.step(new_action)
         if replaced:
             info["intervene_action"] = new_action
+            info["only_mouse_action"] = self.get_expert_action()
         info["left"] = self.left
         info["right"] = self.right
         return obs, rew, done, truncated, info

@@ -7,11 +7,26 @@ import datetime
 from absl import app, flags
 import time
 
+import jax
+import jax.numpy as jnp
+from serl_launcher.agents.continuous.bc import BCAgent
+from serl_launcher.utils.launcher import make_bc_agent
+from flax.training import checkpoints
+from serl_launcher.utils.action_combine import combine_actions
+
 from experiments.mappings import CONFIG_MAPPING
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string("exp_name", None, "Name of experiment corresponding to folder.")
-flags.DEFINE_integer("successes_needed", 10, "Number of successful demos to collect.")
+flags.DEFINE_integer("successes_needed", 20, "Number of successful demos to collect.")
+flags.DEFINE_bool("use_bc_offset", False, "Use BC offset for intervention.")
+flags.DEFINE_string("bc_checkpoint_path", '/home/zxw/hil_serl/main/hil-serl/examples/experiments/banana_pick_place/bc_ckpt', "Path to save checkpoints.")
+flags.DEFINE_integer("seed", 42, "Random seed.")
+
+devices = jax.local_devices()
+num_devices = len(devices)
+sharding = jax.sharding.PositionalSharding(devices)
+
 
 def main(_):
     assert FLAGS.exp_name in CONFIG_MAPPING, 'Experiment folder not found.'
@@ -19,6 +34,8 @@ def main(_):
     env = config.get_environment(fake_env=False, save_video=False, classifier=True)
     
     obs, info = env.reset()
+    # change obs['state'] head 7(BC action) to zero
+    # obs['state'][:, :7] = 0.0
     print("Reset done")
     transitions = []
     success_count = 0
@@ -26,17 +43,64 @@ def main(_):
     pbar = tqdm(total=success_needed)
     trajectory = []
     returns = 0
+
+    # init the sampling_rng for bc_agent
+    if FLAGS.use_bc_offset:
+        print("Using BC offset for intervention.")
+        sample_obs = env.observation_space.sample()
+        # delete ['state'][:, :7](BC action) in sample_obs to resize it
+        sample_obs['state'] = sample_obs['state'][:, 7:]
+        bc_agent: BCAgent = make_bc_agent(
+            seed=FLAGS.seed,
+            sample_obs=sample_obs,
+            sample_action=env.action_space.sample(),
+            image_keys=config.image_keys,
+            encoder_type=config.encoder_type,
+        )
+
+        # Load BC agent checkpoint
+        bc_ckpt = checkpoints.restore_checkpoint(
+            FLAGS.bc_checkpoint_path,
+            bc_agent.state,
+        )
+        bc_agent = bc_agent.replace(state=bc_ckpt)
+    
+        bc_rng = jax.random.PRNGKey(FLAGS.seed)
+        bc_sampling_rng = jax.device_put(bc_rng, sharding.replicate())
+
+        bc_weight = 1.0
+        sac_weight = 1.0
     
     while success_count < success_needed:
-        actions = np.zeros(env.action_space.sample().shape) 
+        zero_actions = np.zeros(env.action_space.sample().shape)
+
+        if FLAGS.use_bc_offset:
+            # Sample actions from BC agent, note there is no need to update the sampling_rng in BC eval mode
+            bc_rng, bc_key = jax.random.split(bc_sampling_rng)
+            obs_for_bc = copy.deepcopy(obs)
+            # delete ['state'][:, :7] in obs_for_bc to resize it
+            obs_for_bc['state'] = obs_for_bc['state'][:, 7:]
+            bc_actions = bc_agent.sample_actions(
+                observations=jax.device_put(obs_for_bc),
+                seed=bc_key,
+            )
+            bc_actions = np.asarray(jax.device_get(bc_actions))
+            actions = combine_actions(bc_actions, zero_actions, env, True, bc_weight, sac_weight)
+            only_mouse_action = zero_actions
+        else:
+            actions = zero_actions
+
         next_obs, rew, done, truncated, info = env.step(actions)
         returns += rew
         if "intervene_action" in info:
             actions = info["intervene_action"]
+            only_mouse_action = info["only_mouse_action"]
+
         transition = copy.deepcopy(
             dict(
                 observations=obs,
-                actions=actions,
+                # actions=actions,
+                actions=only_mouse_action,
                 next_observations=next_obs,
                 rewards=rew,
                 masks=1.0 - done,
