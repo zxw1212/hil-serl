@@ -106,3 +106,72 @@ If you use this code for your research, please cite our paper:
 }
 ```
 
+
+
+## Update
+
+一下是该项目在本地复现中的一些问题记录
+1. spacemouse_test: 如果报错无法打开设备
+
+    ```bash
+    sudo chmod 666 /dev/hidraw*
+    ```
+2. 安装libfranka和franka ros相关问题可能用到的命令行
+    ```bash
+    sudo apt install ros-noetic-libfranka ros-noetic-franka-ros​ 不符合版本需求的话,从源码安装
+
+    #查看版本​
+    #通过apt-get install, dpkg等方式安装的:​
+    dpkg -l | grep libfranka​
+    dpkg -l | grep ros-noetic-franka-ros
+
+    #卸载​
+    sudo apt remove --auto-remove ros-noetic-libfranka​
+    sudo dpkg --remove --force-depends libfranka
+
+    #查看bin路径​
+    dpkg -L ros-noetic-libfranka​
+    dpkg -L ros-noetic-libfranka | grep echo_robot_state
+
+    #查看apt install franka-ros 的 rospack 路径​
+    rospack find franka_control​
+    ls $(rospack find franka_control)/config​
+    sudo gedit /opt/ros/noetic/share/franka_control/config/franka_control_node.yaml​
+    realtime_config: enforce修改为 ignore
+
+    #测试硬件链接 ref: https://frankaemika.github.io/docs/getting_started.html​
+    ./examples/echo_robot_state <fci-ip>
+    ```
+3. realsense 相关
+    ```bash
+    a. https://github.com/IntelRealSense/librealsense/blob/master/doc/distribution_linux.md
+    b. https://github.com/IntelRealSense/realsense-ros#installation-instructions
+    c. https://zhuanlan.zhihu.com/p/626664186
+    d. Real-sense busy: lsof | grep /dev/video
+    ```
+
+4. Cuda cudnn jax
+    ```bash
+    1. pip list | grep cuda
+    2. python -c "import jax; print(jax.__version__, jax.default_backend())"
+    3. pip uninstall -y jax jaxlib jax-cuda12-pjrt jax-cuda12-plugin
+    4. pip install --upgrade jax jaxlib jax-cuda12-pjrt jax-cuda12-plugin
+    ```
+
+5. zmq.error.ZMQError: Address already in use (addr='tcp://*:5588')
+    ```bash
+    lsof -i :5588
+    ```
+
+6. 夹爪 "can not re-initialize"
+    ```bash
+    1. Robot server: ctrl+c, then ctrl + \
+    2. Click re-initialize, 手动辅助,感受到阻力变大后,再次re-initialize
+    ```
+
+7. demo
+
+    <video width="300" controls>
+        <source src="./docs/videos/hilserl_franka_hw_test.mp4" type="video/mp4">
+        Your browser does not support the video tag.
+    </video>
