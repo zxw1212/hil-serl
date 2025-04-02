@@ -38,7 +38,7 @@ class FrankaGripperServer(GripperServer):
         msg.goal.speed = 0.3
         msg.goal.epsilon.inner = 1
         msg.goal.epsilon.outer = 1
-        msg.goal.force = 130
+        msg.goal.force = 50
         self.grippergrasppub.publish(msg)
         self.binary_gripper_pose = 1
 

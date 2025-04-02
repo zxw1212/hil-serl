@@ -309,7 +309,12 @@ class SACAgentHybridSingleArm(flax.struct.PyTreeNode):
         chex.assert_shape(log_probs, (batch_size,))
 
         actor_objective = predicted_q - temperature * log_probs
-        actor_loss = -jnp.mean(actor_objective)
+
+        # action regularization(encourage action to be close to 0)
+        lambda_action_reg = 0.05
+        action_regularization = lambda_action_reg * jnp.mean(jnp.square(actions)) # L2 regularization
+
+        actor_loss = -jnp.mean(actor_objective) + action_regularization
 
         info = {
             "actor_loss": actor_loss,
@@ -514,7 +519,7 @@ class SACAgentHybridSingleArm(flax.struct.PyTreeNode):
         # Config
         assert not entropy_per_dim, "Not implemented"
         if target_entropy is None:
-            target_entropy = -actions.shape[-1] / 2
+            target_entropy = -actions.shape[-1] / 4
 
         return cls(
             state=state,

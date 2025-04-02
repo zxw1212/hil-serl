@@ -1,7 +1,14 @@
 *.pyc
-examples/experiments/__pycache__/
-examples/experiments/egg_flip/__pycache__/
+**/__pycache__/
 examples/experiments/usb_pickup_insertion/classifier_ckpt/
 examples/experiments/usb_pickup_insertion/classifier_data/
 examples/experiments/usb_pickup_insertion/demo_data/
 examples/experiments/usb_pickup_insertion/test3/
+examples/experiments/banana_pick_place/classifier_ckpt/
+examples/experiments/banana_pick_place/classifier_data/
+examples/experiments/banana_pick_place/demo_data/
+examples/experiments/banana_pick_place/demo_data_for_sac/
+examples/experiments/banana_pick_place/test1/
+examples/experiments/banana_pick_place/test2/
+examples/experiments/banana_pick_place/test3/
+examples/experiments/banana_pick_place/bc_ckpt/

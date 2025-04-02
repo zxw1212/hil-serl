@@ -132,6 +132,10 @@ class FrankaEnv(gym.Env):
             np.ones((7,), dtype=np.float32),
         )
 
+        # action offset like bc reference
+        self.bc_action_in_ee = None
+        self.bc_action_in_base = None
+
         self.observation_space = gym.spaces.Dict(
             {
                 "state": gym.spaces.Dict(
@@ -143,6 +147,7 @@ class FrankaEnv(gym.Env):
                         "gripper_pose": gym.spaces.Box(-1, 1, shape=(1,)),
                         "tcp_force": gym.spaces.Box(-np.inf, np.inf, shape=(3,)),
                         "tcp_torque": gym.spaces.Box(-np.inf, np.inf, shape=(3,)),
+                        "BC_action": gym.spaces.Box(-1, 1, shape=(7,)), # delta xyz rpy and gripper
                     }
                 ),
                 "images": gym.spaces.Dict(
@@ -235,6 +240,9 @@ class FrankaEnv(gym.Env):
         reward = self.compute_reward(ob)
         done = self.curr_path_length >= self.max_episode_length or reward or self.terminate
         return ob, int(reward), done, False, {"succeed": reward}
+
+        reward_with_action_penalty = reward - self.sac_action_penalty
+        return ob, reward_with_action_penalty, done, False, {"succeed": reward}
 
     def compute_reward(self, obs) -> bool:
         current_pose = obs["state"]["tcp_pose"]
@@ -336,7 +344,8 @@ class FrankaEnv(gym.Env):
 
     def reset(self, joint_reset=False, **kwargs):
         self.last_gripper_act = time.time()
-        requests.post(self.url + "update_param", json=self.config.COMPLIANCE_PARAM)
+        requests.post(self.url + "update_param", json=self.config.PRECISION_PARAM)
+        time.sleep(0.5)
         if self.save_video:
             self.save_video_recording()
 
@@ -346,7 +355,9 @@ class FrankaEnv(gym.Env):
             joint_reset = True
 
         self._recover()
+        print("go_to_reset...")
         self.go_to_reset(joint_reset=joint_reset)
+        print("go_to_reset done")
         self._recover()
         self.curr_path_length = 0
 
@@ -473,12 +484,17 @@ class FrankaEnv(gym.Env):
 
     def _get_obs(self) -> dict:
         images = self.get_im()
+        if self.bc_action_in_ee is None:
+            bc_action = np.zeros((7,))
+        else:
+            bc_action = self.bc_action_in_ee
         state_observation = {
             "tcp_pose": self.currpos,
             "tcp_vel": self.currvel,
             "gripper_pose": self.curr_gripper_pos,
             "tcp_force": self.currforce,
             "tcp_torque": self.currtorque,
+            "BC_action": bc_action,
         }
         return copy.deepcopy(dict(images=images, state=state_observation))
 
