@@ -216,6 +216,11 @@ class SpacemouseIntervention(gym.ActionWrapper):
         self.left, self.right = False, False
         self.action_indices = action_indices
 
+        self.bc_weight = 1.0
+        self.sac_weight = 1.0
+
+        self.expert_action = None
+
     def action(self, action: np.ndarray) -> np.ndarray:
         """
         Input:
@@ -246,8 +251,17 @@ class SpacemouseIntervention(gym.ActionWrapper):
             filtered_expert_a[self.action_indices] = expert_a[self.action_indices]
             expert_a = filtered_expert_a
 
+        self.expert_action = expert_a
+
         if intervened:
-            return expert_a, True
+            if self.env.unwrapped.bc_action_in_base is not None:
+                scaled_expert_a = copy.deepcopy(expert_a)
+                scaled_expert_a[:6] *= self.sac_weight
+                combined_actions = self.env.unwrapped.bc_action_in_base + scaled_expert_a
+                # combined_actions = self.env.unwrapped.bc_action_in_base + self.sac_weight * expert_a
+                return combined_actions, True
+            else:
+                return expert_a, True
 
         return action, False
 
@@ -257,7 +271,9 @@ class SpacemouseIntervention(gym.ActionWrapper):
 
         obs, rew, done, truncated, info = self.env.step(new_action)
         if replaced:
+            # actions in base frame, then be transformed to ee in the relative env
             info["intervene_action"] = new_action
+            info["only_mouse_action"] = self.expert_action
         info["left"] = self.left
         info["right"] = self.right
         return obs, rew, done, truncated, info

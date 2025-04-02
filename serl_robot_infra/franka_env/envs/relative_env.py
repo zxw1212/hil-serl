@@ -39,6 +39,8 @@ class RelativeFrame(gym.Wrapper):
     def step(self, action: np.ndarray):
         # action is assumed to be (x, y, z, rx, ry, rz, gripper)
         # Transform action from end-effector frame to base frame
+        if self.env.unwrapped.bc_action_in_ee is not None:
+            self.env.unwrapped.bc_action_in_base = self.transform_action(self.env.unwrapped.bc_action_in_ee)
         transformed_action = self.transform_action(action)
         obs, reward, done, truncated, info = self.env.step(transformed_action)
         info['original_state_obs'] = copy.deepcopy(obs['state'])
@@ -46,6 +48,7 @@ class RelativeFrame(gym.Wrapper):
         # this is to convert the spacemouse intervention action
         if "intervene_action" in info:
             info["intervene_action"] = self.transform_action_inv(info["intervene_action"])
+            info["only_mouse_action"] = self.transform_action_inv(info["only_mouse_action"])
 
         # Update adjoint matrix
         self.adjoint_matrix = construct_adjoint_matrix(obs["state"]["tcp_pose"])
@@ -141,12 +144,15 @@ class DualRelativeFrame(gym.Wrapper):
     def step(self, action: np.ndarray):
         # action is assumed to be (x, y, z, rx, ry, rz, gripper)
         # Transform action from end-effector frame to base frame
+        if self.env.unwrapped.bc_action_in_ee is not None:
+            self.env.unwrapped.bc_action_in_base = self.transform_action(self.env.unwrapped.bc_action_in_ee)
         transformed_action = self.transform_action(action)
         obs, reward, done, truncated, info = self.env.step(transformed_action)
 
         # this is to convert the spacemouse intervention action
         if "intervene_action" in info:
             info["intervene_action"] = self.transform_action_inv(info["intervene_action"])
+            info["only_mouse_action"] = self.transform_action_inv(info["only_mouse_action"])
 
         # Update adjoint matrix
         self.left_adjoint_matrix = construct_adjoint_matrix(obs["state"]["left/tcp_pose"])

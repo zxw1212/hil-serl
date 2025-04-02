@@ -33,6 +33,8 @@ flags.DEFINE_integer("eval_n_trajs", 0, "Number of trajectories to evaluate.")
 flags.DEFINE_integer("train_steps", 20_000, "Number of pretraining steps.")
 flags.DEFINE_bool("save_video", False, "Save video of the evaluation.")
 
+# python ../../train_bc.py --exp_name banana_pick_place --bc_checkpoint_path /home/zxw/hil_serl/main/hil-serl/examples/experiments/banana_pick_place/bc_ckpt
+# python ../../train_bc.py --exp_name banana_pick_place --bc_checkpoint_path /home/zxw/hil_serl/main/hil-serl/examples/experiments/banana_pick_place/bc_ckpt --eval_n_trajs 5
 
 flags.DEFINE_boolean(
     "debug", False, "Debug mode."
@@ -71,8 +73,14 @@ def eval(
         while not done:
             rng, key = jax.random.split(sampling_rng)
 
+            # obs['state'][:, :7] = 0.0
+            obs['state'][:, :] = 0.0
+
             actions = bc_agent.sample_actions(observations=obs, seed=key)
             actions = np.asarray(jax.device_get(actions))
+
+            env.unwrapped.bc_action_in_ee = actions
+
             next_obs, reward, done, truncated, info = env.step(actions)
             obs = next_obs
             if done:
