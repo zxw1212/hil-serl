@@ -25,6 +25,7 @@ class SERLObsWrapper(gym.ObservationWrapper):
             }
         )
 
+    # formate the obs from the parent env: usually the qua2eular env
     def observation(self, obs):
         # reorder the key in order or A---Z
         obs = {

@@ -102,7 +102,7 @@ class TrainConfig(DefaultTrainingConfig):
 
     def get_environment(self, fake_env=False, save_video=False, classifier=False):
         env = BananaEnv(
-            fake_env=fake_env, save_video=save_video, config=EnvConfig()
+            fake_env=fake_env, save_video=save_video, config=EnvConfig(), bc_action_as_obs=True
         )
         if not fake_env:
             env = SpacemouseIntervention(env)

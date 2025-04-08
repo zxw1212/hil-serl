@@ -42,6 +42,7 @@ class RelativeFrame(gym.Wrapper):
         if self.env.unwrapped.bc_action_in_ee is not None:
             self.env.unwrapped.bc_action_in_base = self.transform_action(self.env.unwrapped.bc_action_in_ee)
         transformed_action = self.transform_action(action)
+        # call step of the base env(usually the spacemouse env)
         obs, reward, done, truncated, info = self.env.step(transformed_action)
         info['original_state_obs'] = copy.deepcopy(obs['state'])
 
