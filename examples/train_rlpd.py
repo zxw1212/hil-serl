@@ -192,13 +192,6 @@ def actor(agent, data_store, intvn_data_store, env, sampling_rng, bc_agent=None)
                     )
                     bc_actions = np.asarray(jax.device_get(bc_actions))
 
-                    # Combine SAC and BC actions
-                    mark_step = 1000.0
-                    # alpha = 1.0 ---> 0.0 from period 0 to mark_step
-                    alpha = 1.0 - min(1.0, step / mark_step)
-                    # sac_weight = alpha * 0.05 + (1.0 - alpha) * self.sac_weight
-                    # actions = bc_actions + sac_weight * sac_actions
-
                     scaled_sac_actions = copy.deepcopy(sac_actions)
                     scaled_sac_actions[:6] *= sac_weight
                     actions = bc_actions + scaled_sac_actions
@@ -228,12 +221,10 @@ def actor(agent, data_store, intvn_data_store, env, sampling_rng, bc_agent=None)
 
             running_return += reward
 
-            changing_weight_action = alpha * actions + (1 - alpha) * sac_actions
             transition = dict(
                 observations=obs,
                 # actions=actions,
                 actions=sac_actions,
-                # actions = changing_weight_action,
                 next_observations=next_obs,
                 rewards=reward,
                 masks=1.0 - done,

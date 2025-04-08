@@ -18,7 +18,7 @@ from experiments.mappings import CONFIG_MAPPING
 FLAGS = flags.FLAGS
 flags.DEFINE_string("exp_name", None, "Name of experiment corresponding to folder.")
 flags.DEFINE_integer("successes_needed", 10, "Number of successful demos to collect.")
-flags.DEFINE_bool("use_bc_offset", False, "Use BC offset for intervention.")
+flags.DEFINE_bool("use_bc_offset", False, "Use BC offset for intervention.") # True for rl+bc, False for rl or bc single agent
 flags.DEFINE_string("bc_checkpoint_path", '/home/zxw/hil_serl/main/hil-serl/examples/experiments/banana_pick_place/bc_ckpt', "Path to save checkpoints.")
 flags.DEFINE_integer("seed", 42, "Random seed.")
 
@@ -46,9 +46,8 @@ def main(_):
     if FLAGS.use_bc_offset:
         print("Using BC offset for intervention.")
         sample_obs = env.observation_space.sample()
-        # delete ['state'][:, :7](BC action) in sample_obs to resize it
-        # sample_obs['state'] = sample_obs['state'][:, 7:]
-        # sample_obs['state'][:, :7] = 0.0
+        # BC only use the image state as input
+        # sample_obs['state'][:, :7] = 0.0 # disable the 'bc_action' state
         sample_obs['state'][:, :] = 0.0
         bc_agent: BCAgent = make_bc_agent(
             seed=FLAGS.seed,
@@ -76,7 +75,6 @@ def main(_):
             # Sample actions from BC agent, note there is no need to update the sampling_rng in BC eval mode
             bc_rng, bc_key = jax.random.split(bc_sampling_rng)
             obs_for_bc = copy.deepcopy(obs)
-            # obs_for_bc['state'] = obs_for_bc['state'][:, 7:]
             # obs_for_bc['state'][:, :7] = 0.0
             obs_for_bc['state'][:, :] = 0.0
             bc_actions = bc_agent.sample_actions(
@@ -100,7 +98,7 @@ def main(_):
                 assert(actions.all() == only_mouse_action.all())
         
         if not FLAGS.use_bc_offset:
-            # 采集bc训练数据
+            # sample the data for bc agent
             # obs['state'][:, :7] = 0.0
             obs['state'][:, :] = 0.0
         
