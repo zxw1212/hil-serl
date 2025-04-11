@@ -18,6 +18,13 @@ from franka_env.camera.rs_capture import RSCapture
 from franka_env.utils.rotations import euler_2_quat, quat_2_euler
 
 
+
+def print_green(x):
+    return print("\033[92m {}\033[00m".format(x))
+
+def print_yellow(x):
+    return print("\033[93m {}\033[00m".format(x))
+
 class ImageDisplayer(threading.Thread):
     def __init__(self, queue, name):
         threading.Thread.__init__(self)
@@ -73,6 +80,8 @@ class DefaultEnvConfig:
     GRIPPER_SLEEP: float = 0.6
     MAX_EPISODE_LENGTH: int = 100
     JOINT_RESET_PERIOD: int = 0
+
+    RL_ACTION_WEIGHT: float = 1.0
 
 
 ##############################################################################
@@ -262,10 +271,12 @@ class FrankaEnv(gym.Env):
         ob = self._get_obs()
         reward = self.compute_reward(ob)
         done = self.curr_path_length >= self.max_episode_length or reward or self.terminate
+        if done:
+            if reward:
+                print_green("Step success!")
+            if self.curr_path_length >= self.max_episode_length:
+                print_yellow("Step terminated: max episode length reached!")
         return ob, int(reward), done, False, {"succeed": reward}
-
-        reward_with_action_penalty = reward - self.sac_action_penalty
-        return ob, reward_with_action_penalty, done, False, {"succeed": reward}
 
     def compute_reward(self, obs) -> bool:
         current_pose = obs["state"]["tcp_pose"]

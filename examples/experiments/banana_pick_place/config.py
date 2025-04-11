@@ -102,7 +102,7 @@ class TrainConfig(DefaultTrainingConfig):
 
     def get_environment(self, fake_env=False, save_video=False, classifier=False):
         env = BananaEnv(
-            fake_env=fake_env, save_video=save_video, config=EnvConfig(), bc_action_as_obs=True
+            fake_env=fake_env, save_video=save_video, config=EnvConfig(), bc_action_as_obs=False
         )
         if not fake_env:
             env = SpacemouseIntervention(env)
@@ -123,5 +123,5 @@ class TrainConfig(DefaultTrainingConfig):
                 return int(sigmoid(classifier(obs))[0] > 0.7)
 
             env = MultiCameraBinaryRewardClassifierWrapper(env, reward_func)
-        env = GripperPenaltyWrapper(env, penalty=-0.02)
+        # env = GripperPenaltyWrapper(env, penalty=-0.02)
         return env

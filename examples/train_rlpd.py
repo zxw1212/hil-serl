@@ -19,7 +19,7 @@ from serl_launcher.agents.continuous.sac_hybrid_single import SACAgentHybridSing
 from serl_launcher.agents.continuous.sac_hybrid_dual import SACAgentHybridDualArm
 from serl_launcher.agents.continuous.bc import BCAgent
 from serl_launcher.utils.timer_utils import Timer
-from serl_launcher.utils.train_utils import concat_batches
+from serl_launcher.utils.train_utils import concat_batches, cal_rl_action_penalty
 
 from agentlace.trainer import TrainerServer, TrainerClient
 from agentlace.data.data_store import QueuedDataStore
@@ -49,11 +49,12 @@ flags.DEFINE_integer("eval_checkpoint_step", 0, "Step to evaluate the checkpoint
 flags.DEFINE_integer("eval_n_trajs", 0, "Number of trajectories to evaluate.")
 flags.DEFINE_boolean("save_video", False, "Save video.")
 
-flags.DEFINE_string("bc_checkpoint_path", '/home/zxw/hil_serl/main/hil-serl/examples/experiments/banana_pick_place/bc_ckpt', "Path to save checkpoints.")
+# flags.DEFINE_string("bc_checkpoint_path", '/home/zxw/hil_serl/main/hil-serl/examples/experiments/astribot_test/bc_ckpt', "Path to save checkpoints.")
+flags.DEFINE_string("bc_checkpoint_path", None, "Path to save checkpoints.")
 
 
 flags.DEFINE_boolean(
-    "debug", False, "Debug mode."
+    "debug", True, "Debug mode."
 )  # debug mode will disable wandb logging
 
 
@@ -159,9 +160,6 @@ def actor(agent, data_store, intvn_data_store, env, sampling_rng, bc_agent=None)
         bc_rng = jax.random.PRNGKey(FLAGS.seed)
         bc_sampling_rng = jax.device_put(bc_rng, sharding.replicate())
 
-        bc_weight = 1.0
-        sac_weight = 1.0
-
     pbar = tqdm.tqdm(range(start_step, config.max_steps), dynamic_ncols=True)
     for step in pbar:
         timer.tick("total")
@@ -184,8 +182,7 @@ def actor(agent, data_store, intvn_data_store, env, sampling_rng, bc_agent=None)
                     # Sample actions from BC agent, note there is no need to update the sampling_rng in BC eval mode
                     bc_rng, bc_key = jax.random.split(bc_sampling_rng)
                     obs_for_bc = copy.deepcopy(obs)
-                    # obs_for_bc['state'][:, :7] = 0.0
-                    obs_for_bc['state'][:, :] = 0.0
+                    # obs_for_bc['state'][:, :7] = 0.0 $ disable the 'bc_action' in state
                     bc_actions = bc_agent.sample_actions(
                         observations=jax.device_put(obs_for_bc),
                         seed=bc_key,
@@ -193,7 +190,7 @@ def actor(agent, data_store, intvn_data_store, env, sampling_rng, bc_agent=None)
                     bc_actions = np.asarray(jax.device_get(bc_actions))
 
                     scaled_sac_actions = copy.deepcopy(sac_actions)
-                    scaled_sac_actions[:6] *= sac_weight
+                    scaled_sac_actions[:6] *= env.unwrapped.rl_action_weight
                     actions = bc_actions + scaled_sac_actions
                     env.unwrapped.bc_action_in_ee = bc_actions
 
@@ -219,11 +216,14 @@ def actor(agent, data_store, intvn_data_store, env, sampling_rng, bc_agent=None)
             else:
                 already_intervened = False
 
+
+            # add rl action penalty
+            reward -= cal_rl_action_penalty(sac_actions)
+
             running_return += reward
 
             transition = dict(
                 observations=obs,
-                # actions=actions,
                 actions=sac_actions,
                 next_observations=next_obs,
                 rewards=reward,
@@ -300,7 +300,7 @@ def learner(rng, agent, replay_buffer, demo_buffer, wandb_logger=None):
 
     # Create server
     server = TrainerServer(make_trainer_config(), request_callback=stats_callback)
-    server.register_data_store("actor_env", replay_buffer)
+    server.register_data_store("actor_env", replay_buffer) # buffer filling
     server.register_data_store("actor_env_intvn", demo_buffer)
     server.start(threaded=True)
 
@@ -558,10 +558,9 @@ def main(_):
     elif FLAGS.actor:
         if FLAGS.bc_checkpoint_path is not None:
             assert os.path.exists(FLAGS.bc_checkpoint_path)
+            print_green("train rl with bc agent")
             # Initialize BC agent
             sample_obs = env.observation_space.sample()
-            # sample_obs['state'][:, :7] = 0.0
-            sample_obs['state'][:, :] = 0.0
             bc_agent: BCAgent = make_bc_agent(
                 seed=FLAGS.seed,
                 sample_obs=sample_obs,

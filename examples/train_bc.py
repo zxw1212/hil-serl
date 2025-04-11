@@ -37,7 +37,7 @@ flags.DEFINE_bool("save_video", False, "Save video of the evaluation.")
 # python ../../train_bc.py --exp_name banana_pick_place --bc_checkpoint_path /home/zxw/hil_serl/main/hil-serl/examples/experiments/banana_pick_place/bc_ckpt --eval_n_trajs 5
 
 flags.DEFINE_boolean(
-    "debug", False, "Debug mode."
+    "debug", True, "Debug mode."
 )  # debug mode will disable wandb logging
 
 
@@ -72,9 +72,6 @@ def eval(
         start_time = time.time()
         while not done:
             rng, key = jax.random.split(sampling_rng)
-
-            # obs['state'][:, :7] = 0.0
-            obs['state'][:, :] = 0.0
 
             actions = bc_agent.sample_actions(observations=obs, seed=key)
             actions = np.asarray(jax.device_get(actions))

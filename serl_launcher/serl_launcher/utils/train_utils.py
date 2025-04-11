@@ -64,6 +64,11 @@ def concat_batches(offline_batch, online_batch, axis=1):
 
     return frozen_dict.freeze(batch)
 
+def cal_rl_action_penalty(rl_action: np.ndarray) -> float:
+    """Calculate the action penalty for RL."""
+    lambda_action_reg = 0.01
+    rl_action_penalty = lambda_action_reg * np.mean(np.square(rl_action))  # L2 regularization
+    return rl_action_penalty
 
 def load_recorded_video(
     video_path: str,

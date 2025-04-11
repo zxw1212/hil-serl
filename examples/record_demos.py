@@ -11,6 +11,7 @@ import jax
 import jax.numpy as jnp
 from serl_launcher.agents.continuous.bc import BCAgent
 from serl_launcher.utils.launcher import make_bc_agent
+from serl_launcher.utils.train_utils import cal_rl_action_penalty
 from flax.training import checkpoints
 
 from experiments.mappings import CONFIG_MAPPING
@@ -19,7 +20,7 @@ FLAGS = flags.FLAGS
 flags.DEFINE_string("exp_name", None, "Name of experiment corresponding to folder.")
 flags.DEFINE_integer("successes_needed", 10, "Number of successful demos to collect.")
 flags.DEFINE_bool("use_bc_offset", False, "Use BC offset for intervention.") # True for rl+bc, False for rl or bc single agent
-flags.DEFINE_string("bc_checkpoint_path", '/home/zxw/hil_serl/main/hil-serl/examples/experiments/banana_pick_place/bc_ckpt', "Path to save checkpoints.")
+flags.DEFINE_string("bc_checkpoint_path", '/home/zxw/hil_serl/main/hil-serl/examples/experiments/astribot_test/bc_ckpt', "Path to save checkpoints.")
 flags.DEFINE_integer("seed", 42, "Random seed.")
 
 devices = jax.local_devices()
@@ -33,7 +34,6 @@ def main(_):
     env = config.get_environment(fake_env=False, save_video=False, classifier=True)
     
     obs, info = env.reset()
-    assert(obs['state'].shape[0] == 1 and obs['state'].shape[1] == 20)
     print("Reset done")
     transitions = []
     success_count = 0
@@ -46,9 +46,6 @@ def main(_):
     if FLAGS.use_bc_offset:
         print("Using BC offset for intervention.")
         sample_obs = env.observation_space.sample()
-        # BC only use the image state as input
-        # sample_obs['state'][:, :7] = 0.0 # disable the 'bc_action' state
-        sample_obs['state'][:, :] = 0.0
         bc_agent: BCAgent = make_bc_agent(
             seed=FLAGS.seed,
             sample_obs=sample_obs,
@@ -75,8 +72,7 @@ def main(_):
             # Sample actions from BC agent, note there is no need to update the sampling_rng in BC eval mode
             bc_rng, bc_key = jax.random.split(bc_sampling_rng)
             obs_for_bc = copy.deepcopy(obs)
-            # obs_for_bc['state'][:, :7] = 0.0
-            obs_for_bc['state'][:, :] = 0.0
+            # obs_for_bc['state'][:, :7] = 0.0 # disable the 'bc_action' in state
             bc_actions = bc_agent.sample_actions(
                 observations=jax.device_put(obs_for_bc),
                 seed=bc_key,
@@ -90,22 +86,20 @@ def main(_):
             only_mouse_action = zero_actions
 
         next_obs, rew, done, truncated, info = env.step(actions)
-        returns += rew
         if "intervene_action" in info:
             actions = info["intervene_action"]
             only_mouse_action = info["only_mouse_action"]
             if not FLAGS.use_bc_offset:
                 assert(actions.all() == only_mouse_action.all())
         
-        if not FLAGS.use_bc_offset:
-            # sample the data for bc agent
-            # obs['state'][:, :7] = 0.0
-            obs['state'][:, :] = 0.0
-        
+        # add rl action penalty
+        rew -= cal_rl_action_penalty(only_mouse_action)
+
+        returns += rew
+
         transition = copy.deepcopy(
             dict(
                 observations=obs,
-                # actions=actions,
                 actions=only_mouse_action,
                 next_observations=next_obs,
                 rewards=rew,

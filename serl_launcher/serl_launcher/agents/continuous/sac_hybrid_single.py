@@ -311,7 +311,7 @@ class SACAgentHybridSingleArm(flax.struct.PyTreeNode):
         actor_objective = predicted_q - temperature * log_probs
 
         # action regularization(encourage action to be close to 0)
-        lambda_action_reg = 0.05
+        lambda_action_reg = 0.01
         action_regularization = lambda_action_reg * jnp.mean(jnp.square(actions)) # L2 regularization
 
         actor_loss = -jnp.mean(actor_objective) + action_regularization

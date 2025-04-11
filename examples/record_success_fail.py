@@ -39,7 +39,8 @@ def main(_):
     pbar = tqdm(total=success_needed)
     
     while len(successes) < success_needed:
-        actions = np.zeros(env.action_space.sample().shape) 
+        actions = np.zeros(env.action_space.sample().shape)
+        
         next_obs, rew, done, truncated, info = env.step(actions)
         if "intervene_action" in info:
             actions = info["intervene_action"]
