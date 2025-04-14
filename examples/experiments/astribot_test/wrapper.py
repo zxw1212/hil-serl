@@ -31,6 +31,7 @@ class AstribotTestEnv(AstribotEnv):
     # gripper开---reset pose----返回obs
     def reset(self, **kwargs):
         self._recover()
+        time.sleep(0.5) # wait for gripper action done
         self._send_gripper_command(1.0)
 
         obs, info = super().reset(**kwargs)

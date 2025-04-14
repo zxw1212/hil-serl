@@ -76,15 +76,65 @@ class DefaultEnvConfig:
 
 ##############################################################################
 
+class GripperCtrlThread(threading.Thread):
+    def __init__(self, astribot):
+        super().__init__()
+        self.astribot = astribot
+        self.gripper_command = "none"
+        self.running = False
+        self.terminate = False
+        self.lock = threading.Lock()
+
+    def run(self):
+        """线程主循环，持续监听 pose_command 并调用 set_cartesian_pose。"""
+
+        names = [self.astribot.arm_names[1]]  # right arm for now
+        while not self.terminate:
+            if not self.running:
+                time.sleep(0.1)  # 如果线程未运行，稍作休眠
+                continue
+
+            if self.gripper_command != "none":
+                with self.lock:
+                    gripper_command = self.gripper_command  # 获取命令
+
+                # close
+                if gripper_command == "close":
+                    self.astribot.close_effector(names = [self.astribot.effector_right_name], duration=0.5) # blocking call
+                    self.stop_running() # NOTE: 动作执行完之前又发了新指令的话,会被这里的stop忽略掉
+
+                # open
+                if gripper_command == "open":
+                    self.astribot.open_effector(names = [self.astribot.effector_right_name], duration=0.5) # blocking call
+                    self.stop_running()
+
+            time.sleep(1.0 / 250.0)  # default astribot_sdk frequency as 250Hz
+
+    def update_command(self, gripper_cmd):
+        """更新位置命令。"""
+        assert gripper_cmd == "open" or gripper_cmd == "close" or gripper_cmd == "none"
+        with self.lock:
+            self.gripper_command = copy.deepcopy(gripper_cmd)
+
+    def start_running(self):
+        """启动线程运行。"""
+        self.running = True
+
+    def stop_running(self):
+        """停止线程运行。"""
+        self.running = False
+    
+    def terminate_thread(self):
+        self.terminate = True
 
 class CartesianPoseCtrlThread(threading.Thread):
     def __init__(self, astribot):
         super().__init__()
         self.astribot = astribot
-        self.pose_command = None  # 用于存储位置命令
-        self.running = False  # 控制线程运行的开关
+        self.pose_command = None
+        self.running = False
         self.terminate = False
-        self.lock = threading.Lock()  # 用于线程安全
+        self.lock = threading.Lock()
 
     def run(self):
         """线程主循环，持续监听 pose_command 并调用 set_cartesian_pose。"""
@@ -140,6 +190,9 @@ class AstribotEnv(gym.Env):
 
         self.pose_thread = CartesianPoseCtrlThread(self.astribot)
         self.pose_thread.start()
+
+        self.gripper_thread = GripperCtrlThread(self.astribot)
+        self.gripper_thread.start()
 
         self.action_scale = config.ACTION_SCALE
         self._TARGET_POSE = config.TARGET_POSE
@@ -486,9 +539,13 @@ class AstribotEnv(gym.Env):
         """Internal function to send gripper command to the robot."""
         if mode == "binary":
             if (pos <= -0.5) and (self.curr_gripper_pos > 0.85):  # close gripper
-                self.astribot.close_effector(names = [self.astribot.effector_right_name])
+                self.gripper_thread.start_running()
+                self.gripper_thread.update_command("close")
+                # self.astribot.close_effector(names = [self.astribot.effector_right_name])
             elif (pos >= 0.5) and (self.curr_gripper_pos < 0.85):  # open gripper
-                self.astribot.open_effector(names = [self.astribot.effector_right_name])
+                self.gripper_thread.start_running()
+                self.gripper_thread.update_command("open")
+                # self.astribot.open_effector(names = [self.astribot.effector_right_name])
             else: 
                 return
         elif mode == "continuous":
@@ -532,6 +589,9 @@ class AstribotEnv(gym.Env):
         self.pose_thread.stop_running()
         self.pose_thread.terminate_thread()
         self.pose_thread.join()
+        self.gripper_thread.stop_running()
+        self.gripper_thread.terminate_thread()
+        self.gripper_thread.join()
         print("Thread terminated")
         if self.display_image:
             self.img_queue.put(None)
