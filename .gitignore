@@ -12,11 +12,9 @@ examples/experiments/banana_pick_place/test1/
 examples/experiments/banana_pick_place/test2/
 examples/experiments/banana_pick_place/test3/
 examples/experiments/banana_pick_place/bc_ckpt/
-examples/experiments/banana_pick_place/classifier_ckpt/
-examples/experiments/banana_pick_place/classifier_data/
-examples/experiments/banana_pick_place/demo_data/
-examples/experiments/banana_pick_place/demo_data_with_bc/
-examples/experiments/banana_pick_place/test1/
-examples/experiments/banana_pick_place/test2/
-examples/experiments/banana_pick_place/test3/
-examples/experiments/banana_pick_place/bc_ckpt/
+examples/experiments/astribot_test/classifier_ckpt/
+examples/experiments/astribot_test/classifier_data/
+examples/experiments/astribot_test/demo_data/
+examples/experiments/astribot_test/demo_data_with_bc/
+examples/experiments/astribot_test/test1/
+examples/experiments/astribot_test/bc_ckpt/
