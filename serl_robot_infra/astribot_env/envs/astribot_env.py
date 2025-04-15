@@ -76,91 +76,65 @@ class DefaultEnvConfig:
 
 ##############################################################################
 
-class GripperCtrlThread(threading.Thread):
-    def __init__(self, astribot):
-        super().__init__()
-        self.astribot = astribot
-        self.gripper_command = "none"
-        self.running = False
-        self.terminate = False
-        self.lock = threading.Lock()
-
-    def run(self):
-        """线程主循环，持续监听 pose_command 并调用 set_cartesian_pose。"""
-
-        names = [self.astribot.arm_names[1]]  # right arm for now
-        while not self.terminate:
-            if not self.running:
-                time.sleep(0.1)  # 如果线程未运行，稍作休眠
-                continue
-
-            if self.gripper_command != "none":
-                with self.lock:
-                    gripper_command = self.gripper_command  # 获取命令
-
-                # close
-                if gripper_command == "close":
-                    self.astribot.close_effector(names = [self.astribot.effector_right_name], duration=0.5) # blocking call
-                    self.stop_running() # NOTE: 动作执行完之前又发了新指令的话,会被这里的stop忽略掉
-
-                # open
-                if gripper_command == "open":
-                    self.astribot.open_effector(names = [self.astribot.effector_right_name], duration=0.5) # blocking call
-                    self.stop_running()
-
-            time.sleep(1.0 / 250.0)  # default astribot_sdk frequency as 250Hz
-
-    def update_command(self, gripper_cmd):
-        """更新位置命令。"""
-        assert gripper_cmd == "open" or gripper_cmd == "close" or gripper_cmd == "none"
-        with self.lock:
-            self.gripper_command = copy.deepcopy(gripper_cmd)
-
-    def start_running(self):
-        """启动线程运行。"""
-        self.running = True
-
-    def stop_running(self):
-        """停止线程运行。"""
-        self.running = False
-    
-    def terminate_thread(self):
-        self.terminate = True
-
 class CartesianPoseCtrlThread(threading.Thread):
     def __init__(self, astribot):
         super().__init__()
         self.astribot = astribot
-        self.pose_command = None
+        self.ee_pose_command = None
+        self.gripper_command = None
         self.running = False
         self.terminate = False
-        self.lock = threading.Lock()
+        self.ee_lock = threading.Lock()  # 独立的锁用于 ee_pose_command
+        self.gripper_lock = threading.Lock()  # 独立的锁用于 gripper_command
 
     def run(self):
         """线程主循环，持续监听 pose_command 并调用 set_cartesian_pose。"""
 
-        names = [self.astribot.arm_names[1]]  # right arm for now
+        names = [self.astribot.arm_names[1], self.astribot.effector_right_name]  # right arm for now
         while not self.terminate:
             if not self.running:
                 time.sleep(0.1)  # 如果线程未运行，稍作休眠
                 continue
+            
+            ee_pose_command = None
+            gripper_command = None
+            
+            # 分别获取 ee_pose_command 和 gripper_command
+            with self.ee_lock:
+                if self.ee_pose_command is not None:
+                    ee_pose_command = copy.deepcopy(self.ee_pose_command)
+                else:
+                    ee_desired_pos = self.astribot.get_desired_cartesian_pose(frame=self.astribot.world_frame_name)[4]
+                    ee_pose_command = [ee_desired_pos]
 
-            if self.pose_command is not None:
-                with self.lock:
-                    command_list = self.pose_command  # 获取命令
+            with self.gripper_lock:
+                if self.gripper_command is not None:
+                    gripper_command = copy.deepcopy(self.gripper_command)
+                else:
+                    gripper_desired_pos = self.astribot.get_desired_cartesian_pose(frame=self.astribot.world_frame_name)[5] # for ctrl
+                    gripper_command = [gripper_desired_pos]
 
-                # 调用 set_cartesian_pose
-                self.astribot.set_cartesian_pose(
-                    names, command_list, control_way="filter", use_wbc=True
-                )
+            
+            command_list = ee_pose_command + gripper_command  # 获取命令
+
+            # 调用 set_cartesian_pose
+            self.astribot.set_cartesian_pose(
+                names, command_list, control_way="filter", use_wbc=True
+            )
 
             time.sleep(1.0 / 250.0)  # default astribot_sdk frequency as 250Hz
 
-    def update_command(self, ee_command_list):
+    def update_ee_command(self, ee_command_list):
         """更新位置命令。"""
-        assert len(ee_command_list[0]) == 7 
-        with self.lock:
-            self.pose_command = copy.deepcopy(ee_command_list)
+        assert len(ee_command_list[0]) == 7
+        with self.ee_lock:
+            self.ee_pose_command = copy.deepcopy(ee_command_list)
+
+    def update_gripper_command(self, gripper_command):
+        """更新 gripper 命令。"""
+        assert len(gripper_command) == 1
+        with self.gripper_lock:
+            self.gripper_command = copy.deepcopy(gripper_command)
 
     def start_running(self):
         """启动线程运行。"""
@@ -189,9 +163,6 @@ class AstribotEnv(gym.Env):
 
         self.pose_thread = CartesianPoseCtrlThread(self.astribot)
         self.pose_thread.start()
-
-        self.gripper_thread = GripperCtrlThread(self.astribot)
-        self.gripper_thread.start()
 
         self.action_scale = config.ACTION_SCALE
         self._TARGET_POSE = config.TARGET_POSE
@@ -405,13 +376,11 @@ class AstribotEnv(gym.Env):
         implemented each subclass for the specific task.
         Should override this method if custom reset procedure is needed.
         """
-
-        self.pose_thread.stop_running()
-
         # Perform joint reset if needed
         if joint_reset:
             names = [self.astribot.arm_names[1]]
             command_list = [self.config.JOINT_RESET_POSITION.tolist()]
+            self.pose_thread.stop_running()
             response = self.astribot.move_joints_position(names, command_list, duration=1.0, use_wbc=True)
 
         # Perform Carteasian reset
@@ -513,20 +482,19 @@ class AstribotEnv(gym.Env):
 
         self._recover()
         command_list = [pos.tolist()]
-        self.pose_thread.update_command(command_list)
+        self.pose_thread.update_ee_command(command_list)
 
     def _send_gripper_command(self, pos: float, mode="binary"):
         """Internal function to send gripper command to the robot."""
         if mode == "binary":
             if (pos <= -0.5) and (self.curr_gripper_pos > 0.85):  # close gripper
-                self.gripper_thread.start_running()
-                self.gripper_thread.update_command("close")
-                # self.astribot.close_effector(names = [self.astribot.effector_right_name])
+                self.pose_thread.start_running()
+                self.pose_thread.update_gripper_command([[100.0]])
             elif (pos >= 0.5) and (self.curr_gripper_pos < 0.85):  # open gripper
-                self.gripper_thread.start_running()
-                self.gripper_thread.update_command("open")
-                # self.astribot.open_effector(names = [self.astribot.effector_right_name])
-            else: 
+                self.pose_thread.start_running()
+                self.pose_thread.update_gripper_command([[0.0]])
+            else:
+                # not controlled
                 return
         elif mode == "continuous":
             raise NotImplementedError("Continuous gripper control is optional")
@@ -535,10 +503,11 @@ class AstribotEnv(gym.Env):
         """
         Internal function to get the latest state of the robot and its gripper.
         """
-        current_cartesian_pose = self.astribot.get_desired_cartesian_pose(frame=self.astribot.world_frame_name)
-        self.currpos = np.array(current_cartesian_pose[4])
+        desired_cartesian_pose = self.astribot.get_desired_cartesian_pose(frame=self.astribot.world_frame_name)
+        self.currpos = np.array(desired_cartesian_pose[4])
 
-        raw_gripper_pos = np.array(current_cartesian_pose[5])
+        current_cartesian_pose = self.astribot.get_current_cartesian_pose(frame=self.astribot.world_frame_name)
+        raw_gripper_pos = np.array(current_cartesian_pose[5]) # for infer or state judge
         # raw gripper pos 0: open and 100: close, mapping to 1: open and -1: close
         self.curr_gripper_pos = np.clip(1 - (raw_gripper_pos / 100.0) * 2, -1, 1)
 
@@ -563,9 +532,6 @@ class AstribotEnv(gym.Env):
         self.pose_thread.stop_running()
         self.pose_thread.terminate_thread()
         self.pose_thread.join()
-        self.gripper_thread.stop_running()
-        self.gripper_thread.terminate_thread()
-        self.gripper_thread.join()
         print("Thread terminated")
         if self.display_image:
             self.img_queue.put(None)

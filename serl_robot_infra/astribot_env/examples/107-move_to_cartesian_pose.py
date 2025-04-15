@@ -22,7 +22,7 @@ if __name__ == '__main__':
     astribot.move_to_home()
 
     names = [astribot.torso_name, astribot.arm_names[0], astribot.arm_names[1], astribot.effector_names[0], astribot.effector_names[1]]
-    command_list = [[ 0.0, 0.0, 1.2, 0.0, 0.0, 0.0, 1.0],
+    command_list = [[ -0.1, 0.0, 1.2, 0.0, 0.0, 0.0, 1.0],
                     [ 0.35,  0.35, 1.0, 0.0, 0.0, 0.707, 0.707],
                     [ 0.35, -0.35, 1.0, 0.0, 0.0, 0.707, 0.707],
                     [ 40.0],

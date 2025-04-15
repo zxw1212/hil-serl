@@ -41,7 +41,7 @@ class EnvConfig(DefaultEnvConfig):
     ABS_POSE_LIMIT_LOW = TARGET_POSE - np.array([0.2, 0.05, 0.05, 0.1, 0.1, 0.1])
     MAX_EPISODE_LENGTH = 240
     JOINT_RESET_POSITION: np.ndarray = np.array([-0.05389, -0.55, 1.26345, 1.61261, 0.5537, 0.21308, -0.313582])
-    EE_TARGET_POSE_FILTER_PARAM = 0.1
+    EE_TARGET_POSE_FILTER_PARAM = 0.01
     RL_ACTION_WEIGHT = 1.0
 
     REWARD_THRESHOLD: np.ndarray = np.array([0.02, 0.1, 0.1, 0.3, 0.3, 0.3])

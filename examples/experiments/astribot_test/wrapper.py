@@ -30,9 +30,10 @@ class AstribotTestEnv(AstribotEnv):
     
     # gripper开---reset pose----返回obs
     def reset(self, **kwargs):
+        time.sleep(0.5)
         self._recover()
-        time.sleep(0.5) # wait for gripper action done
         self._send_gripper_command(1.0)
+        time.sleep(0.5) # wait the pose ctrl thread to execute gripper open, then reset() will stop the pose ctrl thread
 
         obs, info = super().reset(**kwargs)
         time.sleep(1)
