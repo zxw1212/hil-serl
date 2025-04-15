@@ -22,11 +22,12 @@ class EnvConfig(DefaultEnvConfig):
     REALSENSE_CAMERAS = {
         "wrist": {
             "serial_number": "230322274773",
-            "dim": (1280, 720),
+            "dim": (640, 480),
             "exposure": 17000,
         },
     }
-    IMAGE_CROP = {"wrist": lambda img: img[0:-1, 0:-1]}
+    # IMAGE_CROP = {"wrist": lambda img: img[0:-1, 0:-1]}
+    IMAGE_CROP = {"wrist": lambda img: img[0:10, 0:10]}
     TARGET_POSE = np.array([0.45069316029548645, -0.30646514892578125, 0.8784106373786926, -0.02352749, -0.0531882, 1.53809226])
     RESET_POSE = TARGET_POSE + np.array([-0.2, 0, 0.05, 0, 0, 0])
     ACTION_SCALE = np.array([0.04, 0.1, 1])
@@ -34,14 +35,16 @@ class EnvConfig(DefaultEnvConfig):
     DISPLAY_IMAGE = True
     RANDOM_XY_RANGE = 0.01
     RANDOM_RZ_RANGE = 0.1
-    ABS_POSE_LIMIT_HIGH = TARGET_POSE + np.array([0.1, 0.1, 0.1, 0.5, 0.5, 0.5])
-    ABS_POSE_LIMIT_LOW = TARGET_POSE - np.array([0.2, 0.1, 0.1, 0.5, 0.5, 0.5])
+    # ABS_POSE_LIMIT_HIGH = TARGET_POSE + np.array([0.1, 0.1, 0.1, 0.5, 0.5, 0.5])
+    # ABS_POSE_LIMIT_LOW = TARGET_POSE - np.array([0.2, 0.1, 0.1, 0.5, 0.5, 0.5])
+    ABS_POSE_LIMIT_HIGH = TARGET_POSE + np.array([0.1, 0.05, 0.05, 0.1, 0.1, 0.1])
+    ABS_POSE_LIMIT_LOW = TARGET_POSE - np.array([0.2, 0.05, 0.05, 0.1, 0.1, 0.1])
     MAX_EPISODE_LENGTH = 240
     JOINT_RESET_POSITION: np.ndarray = np.array([-0.05389, -0.55, 1.26345, 1.61261, 0.5537, 0.21308, -0.313582])
     EE_TARGET_POSE_FILTER_PARAM = 0.1
     RL_ACTION_WEIGHT = 1.0
 
-    REWARD_THRESHOLD: np.ndarray = np.array([0.01, 0.1, 0.1, 0.2, 0.2, 0.2])
+    REWARD_THRESHOLD: np.ndarray = np.array([0.02, 0.1, 0.1, 0.3, 0.3, 0.3])
 
 
 class TrainConfig(DefaultTrainingConfig):
@@ -50,7 +53,7 @@ class TrainConfig(DefaultTrainingConfig):
     proprio_keys = ["tcp_pose","gripper_pose"]
     training_starts = 100
     checkpoint_period = 500
-    cta_ratio = 2
+    cta_ratio = 4
     batch_size = 256
     random_steps = 0
     discount = 0.98

@@ -555,7 +555,7 @@ class AstribotEnv(gym.Env):
         """
         Internal function to get the latest state of the robot and its gripper.
         """
-        current_cartesian_pose = self.astribot.get_current_cartesian_pose(frame=self.astribot.world_frame_name)
+        current_cartesian_pose = self.astribot.get_desired_cartesian_pose(frame=self.astribot.world_frame_name)
         self.currpos = np.array(current_cartesian_pose[4])
 
         raw_gripper_pos = np.array(current_cartesian_pose[5])
