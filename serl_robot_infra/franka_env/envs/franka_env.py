@@ -95,7 +95,6 @@ class FrankaEnv(gym.Env):
         save_video=False,
         config: DefaultEnvConfig = None,
         set_load=False,
-        bc_action_as_obs = False,
     ):
         self.action_scale = config.ACTION_SCALE
         self._TARGET_POSE = config.TARGET_POSE
@@ -106,7 +105,6 @@ class FrankaEnv(gym.Env):
         self.max_episode_length = config.MAX_EPISODE_LENGTH
         self.display_image = config.DISPLAY_IMAGE
         self.gripper_sleep = config.GRIPPER_SLEEP
-        self.bc_action_as_obs = bc_action_as_obs
 
         # convert last 3 elements from euler to quat, from size (6,) to (7,)
         self.resetpos = np.concatenate(
@@ -147,47 +145,26 @@ class FrankaEnv(gym.Env):
         self.bc_action_in_ee = None
         self.bc_action_in_base = None
 
-        if bc_action_as_obs:
-            self.observation_space = gym.spaces.Dict(
-                {
-                    "state": gym.spaces.Dict(
-                        {
-                            "tcp_pose": gym.spaces.Box(
-                                -np.inf, np.inf, shape=(7,)
-                            ),  # xyz + quat
-                            "tcp_vel": gym.spaces.Box(-np.inf, np.inf, shape=(6,)),
-                            "gripper_pose": gym.spaces.Box(-1, 1, shape=(1,)),
-                            "tcp_force": gym.spaces.Box(-np.inf, np.inf, shape=(3,)),
-                            "tcp_torque": gym.spaces.Box(-np.inf, np.inf, shape=(3,)),
-                            "BC_action": gym.spaces.Box(-1, 1, shape=(7,)), # delta xyz rpy and gripper
-                        }
-                    ),
-                    "images": gym.spaces.Dict(
-                        {key: gym.spaces.Box(0, 255, shape=(128, 128, 3), dtype=np.uint8) 
-                                    for key in config.REALSENSE_CAMERAS}
-                    ),
-                }
-            )
-        else:
-            self.observation_space = gym.spaces.Dict(
-                {
-                    "state": gym.spaces.Dict(
-                        {
-                            "tcp_pose": gym.spaces.Box(
-                                -np.inf, np.inf, shape=(7,)
-                            ),  # xyz + quat
-                            "tcp_vel": gym.spaces.Box(-np.inf, np.inf, shape=(6,)),
-                            "gripper_pose": gym.spaces.Box(-1, 1, shape=(1,)),
-                            "tcp_force": gym.spaces.Box(-np.inf, np.inf, shape=(3,)),
-                            "tcp_torque": gym.spaces.Box(-np.inf, np.inf, shape=(3,)),
-                        }
-                    ),
-                    "images": gym.spaces.Dict(
-                        {key: gym.spaces.Box(0, 255, shape=(128, 128, 3), dtype=np.uint8) 
-                                    for key in config.REALSENSE_CAMERAS}
-                    ),
-                }
-            )
+        self.observation_space = gym.spaces.Dict(
+            {
+                "state": gym.spaces.Dict(
+                    {
+                        "tcp_pose": gym.spaces.Box(
+                            -np.inf, np.inf, shape=(7,)
+                        ),  # xyz + quat
+                        "tcp_vel": gym.spaces.Box(-np.inf, np.inf, shape=(6,)),
+                        "gripper_pose": gym.spaces.Box(-1, 1, shape=(1,)),
+                        "tcp_force": gym.spaces.Box(-np.inf, np.inf, shape=(3,)),
+                        "tcp_torque": gym.spaces.Box(-np.inf, np.inf, shape=(3,)),
+                        "zzz_BC_action": gym.spaces.Box(-1, 1, shape=(7,)), # delta xyz rpy and gripper
+                    }
+                ),
+                "images": gym.spaces.Dict(
+                    {key: gym.spaces.Box(0, 255, shape=(128, 128, 3), dtype=np.uint8) 
+                                for key in config.REALSENSE_CAMERAS}
+                ),
+            }
+        )
         self.cycle_count = 0
 
         if fake_env:
@@ -522,23 +499,14 @@ class FrankaEnv(gym.Env):
             bc_action = np.zeros((7,))
         else:
             bc_action = self.bc_action_in_ee
-        if self.bc_action_as_obs:
-            state_observation = {
-                "tcp_pose": self.currpos,
-                "tcp_vel": self.currvel,
-                "gripper_pose": self.curr_gripper_pos,
-                "tcp_force": self.currforce,
-                "tcp_torque": self.currtorque,
-                "BC_action": bc_action,
-            }
-        else:
-            state_observation = {
-                "tcp_pose": self.currpos,
-                "tcp_vel": self.currvel,
-                "gripper_pose": self.curr_gripper_pos,
-                "tcp_force": self.currforce,
-                "tcp_torque": self.currtorque,
-            }
+        state_observation = {
+            "tcp_pose": self.currpos,
+            "tcp_vel": self.currvel,
+            "gripper_pose": self.curr_gripper_pos,
+            "tcp_force": self.currforce,
+            "tcp_torque": self.currtorque,
+            "zzz_BC_action": bc_action,
+        }
         return copy.deepcopy(dict(images=images, state=state_observation))
 
     def close(self):

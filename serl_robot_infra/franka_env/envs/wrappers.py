@@ -46,7 +46,11 @@ class MultiCameraBinaryRewardClassifierWrapper(gym.Wrapper):
 
     def compute_reward(self, obs):
         if self.reward_classifier_func is not None:
-            return self.reward_classifier_func(obs)
+            if self.env.bc_action_in_obs:
+                # remove the action from the observation
+                obs_ = copy.deepcopy(obs)
+                obs_['state'][0, -7:] = 0.0
+            return self.reward_classifier_func(obs_)
         return 0
 
     def step(self, action):

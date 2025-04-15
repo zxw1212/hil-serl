@@ -24,6 +24,10 @@ class SERLObsWrapper(gym.ObservationWrapper):
                 **(self.env.observation_space["images"]),
             }
         )
+        if "zzz_BC_action" in self.proprio_keys:
+             self.bc_action_in_obs = True
+        else:
+            self.bc_action_in_obs = False
 
     # formate the obs from the parent env: usually the qua2eular env
     def observation(self, obs):

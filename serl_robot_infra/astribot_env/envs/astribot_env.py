@@ -182,7 +182,6 @@ class AstribotEnv(gym.Env):
         fake_env=False,
         save_video=False,
         config: DefaultEnvConfig = None,
-        bc_action_as_obs = False,
     ):
         # TODO{zengxw}: Only enable the right arm for now.
         self.astribot = Astribot()
@@ -201,7 +200,6 @@ class AstribotEnv(gym.Env):
         self.config = config
         self.max_episode_length = config.MAX_EPISODE_LENGTH
         self.display_image = config.DISPLAY_IMAGE
-        self.bc_action_as_obs = bc_action_as_obs
 
         # convert last 3 elements from euler to quat, from size (6,) to (7,)
         self.resetpos = np.concatenate(
@@ -242,41 +240,23 @@ class AstribotEnv(gym.Env):
 
         self.rl_action_weight = config.RL_ACTION_WEIGHT
 
-        if bc_action_as_obs:
-            self.observation_space = gym.spaces.Dict(
-                {
-                    "state": gym.spaces.Dict(
-                        {
-                            "tcp_pose": gym.spaces.Box(
-                                -np.inf, np.inf, shape=(7,)
-                            ),  # xyz + quat
-                            "gripper_pose": gym.spaces.Box(-1, 1, shape=(1,)),
-                            "BC_action": gym.spaces.Box(-1, 1, shape=(7,)), # delta xyz rpy and gripper
-                        }
-                    ),
-                    "images": gym.spaces.Dict(
-                        {key: gym.spaces.Box(0, 255, shape=(128, 128, 3), dtype=np.uint8) 
-                                    for key in config.REALSENSE_CAMERAS}
-                    ),
-                }
-            )
-        else:
-            self.observation_space = gym.spaces.Dict(
-                {
-                    "state": gym.spaces.Dict(
-                        {
-                            "tcp_pose": gym.spaces.Box(
-                                -np.inf, np.inf, shape=(7,)
-                            ),  # xyz + quat
-                            "gripper_pose": gym.spaces.Box(-1, 1, shape=(1,)),
-                        }
-                    ),
-                    "images": gym.spaces.Dict(
-                        {key: gym.spaces.Box(0, 255, shape=(128, 128, 3), dtype=np.uint8) 
-                                    for key in config.REALSENSE_CAMERAS}
-                    ),
-                }
-            )
+        self.observation_space = gym.spaces.Dict(
+            {
+                "state": gym.spaces.Dict(
+                    {
+                        "tcp_pose": gym.spaces.Box(
+                            -np.inf, np.inf, shape=(7,)
+                        ),  # xyz + quat
+                        "gripper_pose": gym.spaces.Box(-1, 1, shape=(1,)),
+                        "zzz_BC_action": gym.spaces.Box(-1, 1, shape=(7,)), # delta xyz rpy and gripper, zzz**: To keep it in the last position
+                    }
+                ),
+                "images": gym.spaces.Dict(
+                    {key: gym.spaces.Box(0, 255, shape=(128, 128, 3), dtype=np.uint8) 
+                                for key in config.REALSENSE_CAMERAS}
+                ),
+            }
+        )
         self.cycle_count = 0
 
         if fake_env:
@@ -568,17 +548,11 @@ class AstribotEnv(gym.Env):
             bc_action = np.zeros((7,))
         else:
             bc_action = self.bc_action_in_ee
-        if self.bc_action_as_obs:
-            state_observation = {
-                "tcp_pose": self.currpos,
-                "gripper_pose": self.curr_gripper_pos,
-                "BC_action": bc_action,
-            }
-        else:
-            state_observation = {
-                "tcp_pose": self.currpos,
-                "gripper_pose": self.curr_gripper_pos,
-            }
+        state_observation = {
+            "tcp_pose": self.currpos,
+            "gripper_pose": self.curr_gripper_pos,
+            "zzz_BC_action": bc_action, # zzz**: to keep it in the last position
+        }
         return copy.deepcopy(dict(images=images, state=state_observation))
 
     def close(self):

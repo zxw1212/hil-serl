@@ -90,7 +90,7 @@ class EnvConfig(DefaultEnvConfig):
 class TrainConfig(DefaultTrainingConfig):
     image_keys = ["wrist_1", "wrist_2"]
     classifier_keys = ["wrist_1", "wrist_2"]
-    proprio_keys = ["tcp_pose", "tcp_vel", "gripper_pose", "BC_action"]
+    proprio_keys = ["tcp_pose", "tcp_vel", "gripper_pose", "zzz_BC_action"]
     checkpoint_period = 500
     cta_ratio = 2
     batch_size = 256
@@ -102,7 +102,7 @@ class TrainConfig(DefaultTrainingConfig):
 
     def get_environment(self, fake_env=False, save_video=False, classifier=False):
         env = BananaEnv(
-            fake_env=fake_env, save_video=save_video, config=EnvConfig(), bc_action_as_obs=False
+            fake_env=fake_env, save_video=save_video, config=EnvConfig()
         )
         if not fake_env:
             env = SpacemouseIntervention(env)

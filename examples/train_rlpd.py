@@ -49,8 +49,8 @@ flags.DEFINE_integer("eval_checkpoint_step", 0, "Step to evaluate the checkpoint
 flags.DEFINE_integer("eval_n_trajs", 0, "Number of trajectories to evaluate.")
 flags.DEFINE_boolean("save_video", False, "Save video.")
 
-# flags.DEFINE_string("bc_checkpoint_path", '/home/zxw/hil_serl/main/hil-serl/examples/experiments/astribot_test/bc_ckpt', "Path to save checkpoints.")
-flags.DEFINE_string("bc_checkpoint_path", None, "Path to save checkpoints.")
+flags.DEFINE_string("bc_checkpoint_path", '/home/zxw/hil_serl/main/hil-serl/examples/experiments/astribot_test/bc_ckpt', "Path to save checkpoints.")
+# flags.DEFINE_string("bc_checkpoint_path", None, "Path to save checkpoints.")
 
 
 flags.DEFINE_boolean(
@@ -182,7 +182,8 @@ def actor(agent, data_store, intvn_data_store, env, sampling_rng, bc_agent=None)
                     # Sample actions from BC agent, note there is no need to update the sampling_rng in BC eval mode
                     bc_rng, bc_key = jax.random.split(bc_sampling_rng)
                     obs_for_bc = copy.deepcopy(obs)
-                    # obs_for_bc['state'][:, :7] = 0.0 $ disable the 'bc_action' in state
+                    assert env.bc_action_in_obs == True, "The observation should contain the bc_action"
+                    obs_for_bc['state'][0, -7:] = 0.0 # remove the 'bc_action' in state
                     bc_actions = bc_agent.sample_actions(
                         observations=jax.device_put(obs_for_bc),
                         seed=bc_key,

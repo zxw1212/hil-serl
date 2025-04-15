@@ -50,7 +50,7 @@ class EnvConfig(DefaultEnvConfig):
 class TrainConfig(DefaultTrainingConfig):
     image_keys = ["wrist"]
     classifier_keys = ["wrist"]
-    proprio_keys = ["tcp_pose","gripper_pose"]
+    proprio_keys = ["tcp_pose","gripper_pose","zzz_BC_action"]
     training_starts = 100
     checkpoint_period = 500
     cta_ratio = 4
@@ -63,7 +63,7 @@ class TrainConfig(DefaultTrainingConfig):
 
     def get_environment(self, fake_env=False, save_video=False, classifier=False):
         env = AstribotTestEnv(
-            fake_env=fake_env, save_video=save_video, config=EnvConfig(), bc_action_as_obs=False
+            fake_env=fake_env, save_video=save_video, config=EnvConfig()
         )
         if not fake_env:
             env = SpacemouseIntervention(env)
