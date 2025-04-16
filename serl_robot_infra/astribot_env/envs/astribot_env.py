@@ -355,6 +355,58 @@ class AstribotEnv(gym.Env):
         if self.display_image:
             self.img_queue.put(display_images)
         return images
+    
+    def get_image_from_astribot_sdk(self):
+        """
+        Get images from the Astribot SDK and process them to match the existing
+        image handling logic in AstribotEnv.
+        """
+        # Ensure cameras are activated
+        if not hasattr(self, 'sdk_camera_activated') or not self.sdk_camera_activated:
+            cameras_setting = {
+                'astribot_head': {},
+                'astribot_arm_left_effector': {},
+                'astribot_arm_right_effector': {}
+            }
+            self.astribot.activate_camera(cameras_setting)
+            self.sdk_camera_activated = True
+
+        # Get images from Astribot SDK
+        rgb_dict, _, _, timestamp = self.astribot.get_images_dict()
+
+        if rgb_dict is None:
+            print("No images received from Astribot SDK.")
+            return {}
+
+        images = {}
+        display_images = {}
+        full_res_images = {}
+
+        for key, rgb_image in rgb_dict.items():
+            if rgb_image is not None:
+                # Apply cropping if defined in config
+                cropped_rgb = self.config.IMAGE_CROP[key](rgb_image) if key in self.config.IMAGE_CROP else rgb_image
+
+                # Resize image to match observation space
+                resized = cv2.resize(
+                    cropped_rgb, self.observation_space["images"][key].shape[:2][::-1]
+                )
+
+                # Store processed images
+                images[key] = resized[..., ::-1]  # Convert BGR to RGB
+                display_images[key] = resized
+                display_images[key + "_full"] = cropped_rgb
+                full_res_images[key] = copy.deepcopy(cropped_rgb)  # Store full resolution cropped image
+
+        # Handle video saving
+        if self.save_video:
+            self.recording_frames.append(full_res_images)
+
+        # Handle image display
+        if self.display_image:
+            self.img_queue.put(display_images)
+
+        return images
 
     def interpolate_move(self, goal: np.ndarray, timeout: float):
         """Move the robot to the goal position. Blocking call."""
@@ -451,24 +503,50 @@ class AstribotEnv(gym.Env):
             print(f"Failed to save video: {e}")
 
     def init_cameras(self, name_serial_dict=None):
-        """Init both wrist cameras."""
-        if self.cap is not None:  # close cameras if they are already open
-            self.close_cameras()
+        # if "astribot***" in name_serial_dict's key, image_from_astribot_sdk = true:
+        for key in name_serial_dict.keys():
+            if any("astribot" in key for key in name_serial_dict.keys()):
+                self.image_from_astribot_sdk = True
+                print_green("Get image from astribot sdk.")
+            else:
+                self.image_from_astribot_sdk = False
+                print_green("Get image from realsense driver.")
+        
+        if self.image_from_astribot_sdk:
+            # set camera setting from name_serial_dict like below
+            # cameras_setting = {
+            #     'astribot_head': {},
+            #     'astribot_arm_left_effector': {},
+            #     'astribot_arm_right_effector': {}
+            # }
+            cameras_setting = {}
+            for cam_name, kwargs in name_serial_dict.items():
+                cameras_setting[cam_name] = {}
 
-        self.cap = OrderedDict()
-        for cam_name, kwargs in name_serial_dict.items():
-            cap = VideoCapture(
-                RSCapture(name=cam_name, **kwargs)
-            )
-            self.cap[cam_name] = cap
+            self.astribot.activate_camera(cameras_setting)
+            self.sdk_camera_activated = True
+        else:
+            """Init both wrist cameras."""
+            if self.cap is not None:  # close cameras if they are already open
+                self.close_cameras()
+
+            self.cap = OrderedDict()
+            for cam_name, kwargs in name_serial_dict.items():
+                cap = VideoCapture(
+                    RSCapture(name=cam_name, **kwargs)
+                )
+                self.cap[cam_name] = cap
 
     def close_cameras(self):
         """Close both wrist cameras."""
-        try:
-            for cap in self.cap.values():
-                cap.close()
-        except Exception as e:
-            print(f"Failed to close cameras: {e}")
+        if self.image_from_astribot_sdk:
+            pass
+        else:
+            try:
+                for cap in self.cap.values():
+                    cap.close()
+            except Exception as e:
+                print(f"Failed to close cameras: {e}")
 
     def _recover(self):
         """Internal function to recover the robot from error state."""
@@ -512,7 +590,10 @@ class AstribotEnv(gym.Env):
         self.curr_gripper_pos = np.clip(1 - (raw_gripper_pos / 100.0) * 2, -1, 1)
 
     def _get_obs(self) -> dict:
-        images = self.get_im()
+        if self.image_from_astribot_sdk:
+            images = self.get_image_from_astribot_sdk()
+        else:
+            images = self.get_im()
         if self.bc_action_in_ee is None:
             bc_action = np.zeros((7,))
         else:
